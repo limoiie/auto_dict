@@ -1,11 +1,11 @@
 # Auto Dict
 
-A package for transforming between python objects and dicts, where the dicts 
+A package for transforming between python objects and dicts, where the dicts
 contain only python builtin objects.
 
 A use case of `AutoDict` will be converting python objects to/from dict to
 automatically support any kinds of serialization/deserialization, such as json
-or yaml. 
+or yaml.
 
 ## Example
 
@@ -43,11 +43,11 @@ recovered_student = AutoDict.from_dict(student_dict)
 assert student == recovered_student
 ```
 
-In the above code, we first mark the custom class as dictable by using 
-the `dictable` annotator. Once marked, you can call `AutoDict.to_dict` and 
+In the above code, we first mark the custom class as dictable by using
+the `dictable` annotator. Once marked, you can call `AutoDict.to_dict` and
 `AutoDict.from_dict` to transform between objects and dictionaries.
 
-## Usage
+## Usages
 
 ### Mark in annotator style
 
@@ -82,7 +82,7 @@ class Student(Dictable):
 
 ### Mark nested dictable
 
-To support auto-dict recursively, you need provide field types in class 
+To support auto-dict recursively, you need provide field types in class
 annotations.
 
 ```python
@@ -102,8 +102,8 @@ class Apartment:
 
 ### Transform with embedded class info
 
-During the transforming from object to dictionary, you can embed the 
-class name into the output dictionary, so that no explicit type required for the 
+During the transforming from object to dictionary, you can embed the
+class name into the output dictionary, so that no explicit type required for the
 reverse transformation.
 
 ```python
@@ -119,8 +119,8 @@ assert student == o_student
 
 ### Transform with explicit type
 
-Or, you can strip out the class information from the output dictionary to make 
-it clean. In this case, when you transform from the dictionary back to the 
+Or, you can strip out the class information from the output dictionary to make
+it clean. In this case, when you transform from the dictionary back to the
 object, you need to provide the type explicitly:
 
 ```python
@@ -136,13 +136,12 @@ assert student == o_student
 
 ### Overwrite default transformation behavior
 
-The default to_dict reads objects' field `__dict__` to generate the dict 
-structure.
+The default to_dict reads objects' field `__dict__` to generate dict structure.
 
-On the other side, the default from_dict first tries to call the 
-class constructor without any arg, and then assign the dictionary to the 
-object's field `__dict__`. If that failed, the default from_dict will call
-the class constructor with the dictionary as the kwargs.
+On the other side, the default from_dict first tries to call class constructor
+without any arg, and then assign the dictionary to the object's field
+`__dict__`. If that failed, the default from_dict will call the class
+constructor with the dictionary as the kwargs.
 
 To overwrite the behavior in annotator style, you need to provide the transform
 functions in the annotator's call interface:
@@ -168,11 +167,11 @@ class Student:
         self.name, self.age = name_age.rsplit('.', maxsplit=1)
 ```
 
-As for overwriting in derive style, just override methods `_to_dict` and 
+As for overwriting in derive style, just override methods `_to_dict` and
 `_from_dict`:
 
 ```python
-from src.auto_dict import Dictable
+from auto_dict import Dictable
 
 class Student(Dictable):
     def __init__(self, name_age):
