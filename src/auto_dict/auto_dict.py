@@ -81,10 +81,6 @@ class Dictable(SubclassRegistry):
           instantiation.
         :param cls: The class that is going to be instantiated against. If
           providing `None`, the real class will be inferred from the dictionary.
-        :param module: The module path of the current class. This is used to
-          provide module information for these local annotation type strings.
-        :param recursively: A boolean value indicating if transforms
-          items/fields or not.
         :return:
         """
         return AutoDict.from_dict(dic, cls=cls, module=cls.__module__)
@@ -93,10 +89,8 @@ class Dictable(SubclassRegistry):
         """
         Transform self to a dictionary if its class is registered.
 
-        :param obj: The object going to be transformed.
         :param with_cls: A boolean value indicating if embedding class path into
           the final dict or not.
-        :param recursively: A boolean value indicating if
         :return: the transformed dictionary if the class of obj is registered;
           otherwise, just the original object.
         """

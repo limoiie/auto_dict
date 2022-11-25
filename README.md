@@ -7,7 +7,7 @@ A use case of `AutoDict` will be converting python objects to/from dict to
 automatically support any kinds of serialization/deserialization, such as json
 or yaml.
 
-## Example
+## Get started
 
 A simple example may be like:
 
@@ -33,7 +33,7 @@ class Student:
 student = Student('limo', 90)
 student_dict = AutoDict.to_dict(student)
 
-# if you want to searialize the object, just dump the dict
+# if you want to serialize the object, just dump the dict
 json_string = json.dumps(student_dict)
 with open(..., 'w+') as f:
     f.write(json_string)
