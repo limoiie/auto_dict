@@ -2,8 +2,8 @@ import enum
 import pathlib
 from typing import List
 
-from src.auto_dict import dictable, AutoDict
-from src.auto_dict.auto_dict import Dictable
+from auto_dict import dictable, AutoDict
+from auto_dict.auto_dict import Dictable
 
 
 @dictable
