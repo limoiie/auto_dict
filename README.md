@@ -16,12 +16,13 @@ import json
 
 from auto_dict import dictable, AutoDict
 
+
 @dictable
 class Student:
     def __init__(self, name, age):
         self.name = name
         self.age = age
-    
+
     # for comparison
     def __eq__(self, other):
         return isinstance(other, Student) and \
@@ -58,12 +59,14 @@ You can annotate your class as dictable:
 ```python
 from auto_dict import dictable
 
+
 @dictable
 class Student:
-   def __init__(self, name, age):
-       self.name = name
-       self.age = age
-   ...
+    def __init__(self, name, age):
+        self.name = name
+        self.age = age
+
+    ...
 ```
 
 ### Mark in derive style
@@ -73,10 +76,12 @@ Or, you can derive from the `AutoDictable` base class:
 ```python
 from auto_dict import Dictable
 
+
 class Student(Dictable):
     def __init__(self, name, age):
         self.name = name
         self.age = age
+
     ...
 ```
 
@@ -88,14 +93,17 @@ annotations.
 ```python
 from typing import List
 
-from auto_dict import dictable
+from auto_dict import dictable, Dictable
 
-...
+
+class Student(Dictable):
+    ...
+
 
 @dictable
 class Apartment:
     students: List[Student]
-    
+
     def __init__(self, students):
         self.students = students
 ```
@@ -107,9 +115,16 @@ class name into the output dictionary, so that no explicit type required for the
 reverse transformation.
 
 ```python
-from auto_dict import AutoDict
+from auto_dict import AutoDict, Dictable
 
-...  # mark class Student as dictable
+
+class Student(Dictable):
+    def __init__(self, name, age):
+        self.name = name
+        self.age = age
+
+    ...
+
 
 student = Student('limo', 90)
 student_dict = AutoDict.to_dict(student)
@@ -124,9 +139,16 @@ it clean. In this case, when you transform from the dictionary back to the
 object, you need to provide the type explicitly:
 
 ```python
-from auto_dict import AutoDict
+from auto_dict import AutoDict, Dictable
 
-...  # mark class Student as dictable
+
+class Student(Dictable):
+    def __init__(self, name, age):
+        self.name = name
+        self.age = age
+
+    ...
+
 
 student = Student('limo', 90)
 student_dict = AutoDict.to_dict(student, with_cls=False)
@@ -173,10 +195,11 @@ As for overwriting in derive style, just override methods `_to_dict` and
 ```python
 from auto_dict import Dictable
 
+
 class Student(Dictable):
     def __init__(self, name_age):
         self.name, self.age = name_age.rsplit('.', maxsplit=1)
-    
+
     def _to_dict(self) -> dict:
         return {
             'name-age': f'{self.name}.{self.age}'
