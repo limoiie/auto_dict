@@ -8,5 +8,7 @@ pip-wheel-metadata/
 
 .DS_Store
 
+.pytest_cache/
+
 .idea/
 .vscode/
