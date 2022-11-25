@@ -3,7 +3,7 @@ requires = ["setuptools", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "auto_dict"
+name = "autodict"
 dynamic = ["version"]
 authors = [
     { name = "limo", email = "limo.iie4@gmail.com" }

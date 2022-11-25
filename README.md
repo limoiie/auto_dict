@@ -1,7 +1,7 @@
 # Auto Dict
 
-[![AutoDict unit tests](https://github.com/limoiie/auto_dict/actions/workflows/python-package.yml/badge.svg?branch=master)](https://github.com/limoiie/auto_dict/actions?branch=master)
-[![Codacy Badge](https://app.codacy.com/project/badge/Grade/5842f736f8404c1ababfd439b5eeea05)](https://www.codacy.com/gh/limoiie/auto_dict/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=limoiie/auto_dict&amp;utm_campaign=Badge_Grade)
+[![AutoDict unit tests](https://github.com/limoiie/autodict/actions/workflows/python-package.yml/badge.svg?branch=master)](https://github.com/limoiie/autodict/actions?branch=master)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/5842f736f8404c1ababfd439b5eeea05)](https://www.codacy.com/gh/limoiie/autodict/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=limoiie/autodict&amp;utm_campaign=Badge_Grade)
 
 AutoDict is a package for transforming between python objects and dicts, where 
 the dicts contain only python builtin objects.
@@ -17,7 +17,7 @@ A simple example may be like:
 ```python
 import json
 
-from auto_dict import dictable, AutoDict
+from autodict import dictable, AutoDict
 
 
 @dictable
@@ -60,7 +60,7 @@ the `dictable` annotator. Once marked, you can call `AutoDict.to_dict` and
 You can annotate your class as dictable:
 
 ```python
-from auto_dict import dictable
+from autodict import dictable
 
 
 @dictable
@@ -77,7 +77,7 @@ class Student:
 Or, you can derive from the `AutoDictable` base class:
 
 ```python
-from auto_dict import Dictable
+from autodict import Dictable
 
 
 class Student(Dictable):
@@ -96,7 +96,7 @@ annotations.
 ```python
 from typing import List
 
-from auto_dict import dictable, Dictable
+from autodict import dictable, Dictable
 
 
 class Student(Dictable):
@@ -118,7 +118,7 @@ class name into the output dictionary, so that no explicit type required for the
 reverse transformation.
 
 ```python
-from auto_dict import AutoDict, Dictable
+from autodict import AutoDict, Dictable
 
 
 class Student(Dictable):
@@ -142,7 +142,7 @@ it clean. In this case, when you transform from the dictionary back to the
 object, you need to provide the type explicitly:
 
 ```python
-from auto_dict import AutoDict, Dictable
+from autodict import AutoDict, Dictable
 
 
 class Student(Dictable):
@@ -172,7 +172,7 @@ To overwrite the behavior in annotator style, you need to provide the transform
 functions in the annotator's call interface:
 
 ```python
-from auto_dict import dictable
+from autodict import dictable
 
 
 def student_to_dict(student):
@@ -196,7 +196,7 @@ As for overwriting in derive style, just override methods `_to_dict` and
 `_from_dict`:
 
 ```python
-from auto_dict import Dictable
+from autodict import Dictable
 
 
 class Student(Dictable):
