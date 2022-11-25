@@ -1,6 +1,7 @@
 # Auto Dict
 
-![AutoDict unit tests](https://github.com/limoiie/auto_dict/actions/workflows/python-package.yml/badge.svg?branch=master)
+[![AutoDict unit tests](https://github.com/limoiie/auto_dict/actions/workflows/python-package.yml/badge.svg?branch=master)](https://github.com/limoiie/auto_dict/actions?branch=master)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/5842f736f8404c1ababfd439b5eeea05)](https://www.codacy.com/gh/limoiie/auto_dict/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=limoiie/auto_dict&amp;utm_campaign=Badge_Grade)
 
 AutoDict is a package for transforming between python objects and dicts, where 
 the dicts contain only python builtin objects.
