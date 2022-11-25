@@ -1,7 +1,9 @@
 # Auto Dict
 
-A package for transforming between python objects and dicts, where the dicts
-contain only python builtin objects.
+![AutoDict unit tests](https://github.com/limoiie/auto_dict/actions/workflows/python-package.yml/badge.svg?branch=master)
+
+AutoDict is a package for transforming between python objects and dicts, where 
+the dicts contain only python builtin objects.
 
 A use case of `AutoDict` will be converting python objects to/from dict to
 automatically support any kinds of serialization/deserialization, such as json
