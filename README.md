@@ -212,3 +212,49 @@ class Student(Dictable):
     def _from_dict(cls, dic: dict) -> 'Student':
         return Student(dic['name-age'])
 ```
+
+### Partially dictable in annotator style
+
+If you only want the to_dict or the from_dict functionality, you can annotate
+with `to_dictable` or `from_dictable`:
+
+```python
+from autodict import to_dictable, AutoDict
+
+
+@to_dictable
+class Student:
+    def __init__(self, name, age):
+        self.name = name
+        self.age = age
+
+
+student = Student(name='limo', age=90)
+student_dict = AutoDict.to_dict(student)
+AutoDict.from_dict(student_dict)  # throw exception UnableFromDict
+```
+
+### Partially dictable in derive style
+
+If you derive `Dictable`, you can achieve partially dictable by calling function
+`unable_*_dict` explicitly:
+
+```python
+from autodict import AutoDict, Dictable
+from autodict.autodict import unable_from_dict
+
+
+class Student(Dictable):
+    def __init__(self, name, age):
+        self.name = name
+        self.age = age
+    
+    @classmethod
+    def _from_dict(cls, dic: dict):
+        return unable_from_dict(cls, dic)
+
+
+student = Student(name='limo', age=90)
+student_dict = AutoDict.to_dict(student)
+AutoDict.from_dict(student_dict)  # throw exception UnableFromDict
+```
