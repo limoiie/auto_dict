@@ -2,8 +2,10 @@ import enum
 import pathlib
 from typing import List
 
+import pytest
+
 from autodict import dictable, AutoDict
-from autodict.autodict import Dictable
+from autodict.autodict import Dictable, UnToDictable, UnFromDictable
 
 
 @dictable
@@ -18,6 +20,12 @@ class A:
 
     def __str__(self):
         return f'({self.str_value}, {self.int_value})'
+
+
+class A2:
+    def __init__(self, str_value, int_value):
+        self.str_value = str_value
+        self.int_value = int_value
 
 
 @dictable
@@ -57,8 +65,34 @@ class TestAnnotate:
         output_a = AutoDict.from_dict(dict_a)
         assert dict_a == output_a
 
+    def test_force_to_dict(self):
+        a = A2(str_value='limo', int_value=10)
+
+        with pytest.raises(UnToDictable, match='.*A2.*'):
+            AutoDict.to_dict(a)
+
+    def test_allow_unable_to_dict(self):
+        a = A2(str_value='limo', int_value=10)
+
+        failed_dict_a = AutoDict.to_dict(a, strict=False)
+        assert a == failed_dict_a
+
+    def test_force_from_dict(self):
+        dict_a = {'str_value': 'limo', 'int_value': 10}
+
+        with pytest.raises(UnFromDictable, match='.*A2.*'):
+            AutoDict.from_dict(dict_a, A2)
+
+    def test_allow_unable_from_dict(self):
+        dict_a = {'str_value': 'limo', 'int_value': 10}
+
+        failed_a = AutoDict.from_dict(dict_a, A2, strict=False)
+        assert dict_a == failed_a
+
     @dictable
     class B:
+        a: A
+
         def __init__(self, a, count):
             self.a = a
             self.count = count
@@ -92,6 +126,98 @@ class TestAnnotate:
         dict_b = AutoDict.to_dict(b)
         output_b = AutoDict.from_dict(dict_b)
         assert b == output_b
+
+    @dictable
+    class B2:
+        a: A2
+
+        def __init__(self, a, count):
+            self.a = a
+            self.count = count
+
+        def __eq__(self, other):
+            return self.a == other.a and self.count == other.count
+
+    def test_nested_force_to_dict(self):
+        a = A2(str_value='limo', int_value=10)
+        b = TestAnnotate.B2(a=a, count=20)
+
+        with pytest.raises(UnToDictable, match='.*A2.*'):
+            AutoDict.to_dict(b)
+
+    def test_nested_allow_unable_to_dict(self):
+        a = A2(str_value='limo', int_value=10)
+        b = TestAnnotate.B2(a=a, count=20)
+
+        failed_dict_b = AutoDict.to_dict(b, strict=False)
+        assert {'a': a, 'count': 20, '@': 'B2'} == failed_dict_b
+
+    def test_nested_force_from_dict(self):
+        dict_b = {
+            'a': {'str_value': 'limo', 'int_value': 10, '@': 'A2'},
+            'count': 10,
+            '@': 'B2'
+        }
+
+        with pytest.raises(UnFromDictable, match='.*A2.*'):
+            AutoDict.from_dict(dict_b, TestAnnotate.B2)
+
+    def test_nested_allow_unable_from_dict(self):
+        dict_b = {
+            'a': {'str_value': 'limo', 'int_value': 10, '@': 'A2'},
+            'count': 10,
+            '@': 'B2'
+        }
+
+        failed_b = AutoDict.from_dict(dict_b, TestAnnotate.B2, strict=False)
+        assert TestAnnotate.B(a=dict_b['a'], count=10) == failed_b
+
+    class B3:
+        a: A
+
+        def __init__(self, a, count):
+            self.a = a
+            self.count = count
+
+        def __eq__(self, other):
+            return isinstance(other, TestAnnotate.B3) and \
+                self.a == other.a and \
+                self.count == other.count
+
+    def test_outer_force_to_dict(self):
+        a = A(str_value='limo', int_value=10)
+        b = TestAnnotate.B3(a=a, count=20)
+
+        with pytest.raises(UnToDictable, match='.*B3.*'):
+            AutoDict.to_dict(b)
+
+    def test_outer_allow_unable_to_dict(self):
+        a = A(str_value='limo', int_value=10)
+        b = TestAnnotate.B3(a=a, count=20)
+
+        # if a class is un-to_dictable, then its field will not be transformed
+        failed_dict_b = AutoDict.to_dict(b, strict=False)
+        assert b == failed_dict_b
+
+    def test_outer_force_from_dict(self):
+        dict_b = {
+            'a': {'str_value': 'limo', 'int_value': 10, '@': 'A'},
+            'count': 20,
+            '@': 'B3'
+        }
+
+        with pytest.raises(UnFromDictable, match='.*B3.*'):
+            AutoDict.from_dict(dict_b, TestAnnotate.B3)
+
+    def test_outer_allow_unable_from_dict(self):
+        dict_b = {
+            'a': {'str_value': 'limo', 'int_value': 10, '@': 'A'},
+            'count': 20,
+        }
+
+        # if a class is un-from_dictable, its fields will still be transformed
+        failed_b = AutoDict.from_dict(dict_b, TestAnnotate.B3, strict=False)
+        assert {'a': A(str_value='limo', int_value=10), 'count': 20} == failed_b
 
     @dictable
     class C:
