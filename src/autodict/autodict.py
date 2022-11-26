@@ -10,14 +10,14 @@ from registry import Registry, SubclassRegistry
 T = TypeVar('T')
 
 
-class UnToDictable(Exception):
+class UnableToDict(Exception):
     def __init__(self, cls: type or None):
         super().__init__(
             f'{cls}, please mark it as to_dictable.'
         )
 
 
-class UnFromDictable(Exception):
+class UnableFromDict(Exception):
     def __init__(self, cls: type or None):
         super().__init__(
             f'{cls}, please mark it as from_dictable.'
@@ -165,7 +165,7 @@ class AutoDict(Registry):
         elif _is_builtin(cls) or not strict:
             dic = obj
         else:
-            raise UnToDictable(cls)
+            raise UnableToDict(cls)
 
         if recursively:
             dic = AutoDict._to_dict_for_items(dic, with_cls, strict=strict)
@@ -206,7 +206,7 @@ class AutoDict(Registry):
         elif cls is None or _is_builtin(cls) or not strict:
             obj = dic
         else:
-            raise UnFromDictable(cls)
+            raise UnableFromDict(cls)
 
         return obj
 
@@ -307,11 +307,11 @@ def enum_from_dict(cls: Type[T], enum_dic: dict) -> T:
 
 
 def unable_to_dict(obj) -> dict:
-    raise UnToDictable(type(obj))
+    raise UnableToDict(type(obj))
 
 
 def unable_from_dict(cls: Type[T], _dic: dict) -> T:
-    raise UnFromDictable(cls)
+    raise UnableFromDict(cls)
 
 
 def _is_builtin(cls: type):

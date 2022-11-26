@@ -1,6 +1,10 @@
 import pathlib as _plib
 
-from .autodict import dictable, AutoDict, Dictable, UnToDictable, UnFromDictable
+from .autodict import dictable, to_dictable, from_dictable, AutoDict, Dictable, \
+    UnableToDict, UnableFromDict
+
+__all__ = ['dictable', 'to_dictable', 'from_dictable', 'AutoDict', 'Dictable',
+           'UnableToDict', 'UnableFromDict']
 
 
 def _path_to_dict(path: _plib.Path):

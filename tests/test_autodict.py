@@ -5,7 +5,7 @@ from typing import List
 import pytest
 
 from autodict import dictable, AutoDict
-from autodict.autodict import Dictable, UnToDictable, UnFromDictable, \
+from autodict.autodict import Dictable, UnableToDict, UnableFromDict, \
     to_dictable, from_dictable
 
 
@@ -69,7 +69,7 @@ class TestAnnotate:
     def test_force_to_dict(self):
         a = A2(str_value='limo', int_value=10)
 
-        with pytest.raises(UnToDictable, match='.*A2.*'):
+        with pytest.raises(UnableToDict, match='.*A2.*'):
             AutoDict.to_dict(a)
 
     def test_allow_unable_to_dict(self):
@@ -81,7 +81,7 @@ class TestAnnotate:
     def test_force_from_dict(self):
         dict_a = {'str_value': 'limo', 'int_value': 10}
 
-        with pytest.raises(UnFromDictable, match='.*A2.*'):
+        with pytest.raises(UnableFromDict, match='.*A2.*'):
             AutoDict.from_dict(dict_a, A2)
 
     def test_allow_unable_from_dict(self):
@@ -143,7 +143,7 @@ class TestAnnotate:
         a = A2(str_value='limo', int_value=10)
         b = TestAnnotate.B2(a=a, count=20)
 
-        with pytest.raises(UnToDictable, match='.*A2.*'):
+        with pytest.raises(UnableToDict, match='.*A2.*'):
             AutoDict.to_dict(b)
 
     def test_nested_allow_unable_to_dict(self):
@@ -160,7 +160,7 @@ class TestAnnotate:
             '@': 'B2'
         }
 
-        with pytest.raises(UnFromDictable, match='.*A2.*'):
+        with pytest.raises(UnableFromDict, match='.*A2.*'):
             AutoDict.from_dict(dict_b, TestAnnotate.B2)
 
     def test_nested_allow_unable_from_dict(self):
@@ -189,7 +189,7 @@ class TestAnnotate:
         a = A(str_value='limo', int_value=10)
         b = TestAnnotate.B3(a=a, count=20)
 
-        with pytest.raises(UnToDictable, match='.*B3.*'):
+        with pytest.raises(UnableToDict, match='.*B3.*'):
             AutoDict.to_dict(b)
 
     def test_outer_allow_unable_to_dict(self):
@@ -207,7 +207,7 @@ class TestAnnotate:
             '@': 'B3'
         }
 
-        with pytest.raises(UnFromDictable, match='.*B3.*'):
+        with pytest.raises(UnableFromDict, match='.*B3.*'):
             AutoDict.from_dict(dict_b, TestAnnotate.B3)
 
     def test_outer_allow_unable_from_dict(self):
@@ -319,7 +319,7 @@ class TestAnnotate:
     def test_to_dictable_from_dict(self):
         dict_f = {'str_value': 'limo', 'int_value': 10, '@': 'F'}
 
-        with pytest.raises(UnFromDictable, match='.*F.*'):
+        with pytest.raises(UnableFromDict, match='.*F.*'):
             AutoDict.from_dict(dict_f)
 
     @from_dictable
@@ -337,7 +337,7 @@ class TestAnnotate:
     def test_from_dictable_to_dict(self):
         g = TestAnnotate.G(str_value='limo', int_value=10)
 
-        with pytest.raises(UnToDictable, match='.*G.*'):
+        with pytest.raises(UnableToDict, match='.*G.*'):
             AutoDict.to_dict(g)
 
     @to_dictable
