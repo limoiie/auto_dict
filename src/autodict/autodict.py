@@ -3,7 +3,7 @@ import enum
 import importlib
 import inspect
 from collections import OrderedDict
-from typing import Type, TypeVar, ForwardRef
+from typing import Any, Dict, ForwardRef, Type, TypeVar
 
 from registry import Registry, SubclassRegistry
 
@@ -282,12 +282,15 @@ def default_to_dict(obj):
     return copy.copy(obj.__dict__)
 
 
-def default_from_dict(cls: Type[T], dic: dict) -> T:
+def default_from_dict(cls: Type[T], dic: Dict[str, Any]) -> T:
     try:
         obj = cls()
-        obj.__dict__.update(dic)
+        obj.__dict__.update(**dic)
     except TypeError:
-        obj = cls(**dic)
+        obj = cls(**{
+            _strip_hidden_field_prefix(cls, field): val
+            for field, val in dic.items()
+        })
     return obj
 
 
@@ -321,6 +324,23 @@ def _is_builtin(cls: type):
 
 def _is_collection(cls):
     return issubclass(cls, (list, set, tuple, dict, OrderedDict))
+
+
+def _strip_hidden_field_prefix(cls: type, key: str):
+    if not key.startswith('_'):
+        return key
+
+    if '__' in key:
+        prefix = f'_{cls.__name__}__'
+        if key.startswith(prefix):
+            return key[len(prefix):]
+
+        for parent_cls in cls.__bases__:
+            strip_key = _strip_hidden_field_prefix(parent_cls, key)
+            if len(strip_key) + 1 < len(key):
+                return strip_key
+
+    return key[1:]
 
 
 def _map(obj, mapper):
