@@ -30,6 +30,40 @@ class A2:
 
 
 @dictable
+class A3:
+    def __init__(self):
+        self._protected_value = ''
+        self.__private_value = 0
+
+    def set(self, protected_value, private_value):
+        self._protected_value = protected_value
+        self.__private_value = private_value
+
+    def __eq__(self, other):
+        return isinstance(other, A3) and \
+            self._protected_value == other._protected_value and \
+            self.__private_value == other.__private_value
+
+
+@dictable
+class A4:
+    def __init__(self, protected_value, private_value):
+        self._protected_value = protected_value
+        self.__private_value = private_value
+
+    def __eq__(self, other):
+        return isinstance(other, A4) and \
+            self._protected_value == other._protected_value and \
+            self.__private_value == other.__private_value
+
+
+@dictable
+class A5(A4):
+    def __init__(self, protected_value, private_value):
+        super().__init__(protected_value, private_value)
+
+
+@dictable
 class Color(enum.Enum):
     Black = 1
     Red = 2
@@ -89,6 +123,46 @@ class TestAnnotate:
 
         failed_a = AutoDict.from_dict(dict_a, A2, strict=False)
         assert dict_a == failed_a
+
+    def test_to_dict_with_hidden_fields_without_constructor_args(self):
+        a = A3()
+        a.set('name', 10)
+        dict_a = AutoDict.to_dict(a)
+
+        assert dict_a == {
+            '_protected_value': 'name',
+            '_A3__private_value': 10,
+            '@': 'A3'
+        }
+
+        output_a = AutoDict.from_dict(dict_a)
+        assert a == output_a
+
+    def test_to_dict_with_hidden_fields_with_constructor_args(self):
+        a = A4('name', 10)
+        dict_a = AutoDict.to_dict(a)
+
+        assert dict_a == {
+            '_protected_value': 'name',
+            '_A4__private_value': 10,
+            '@': 'A4'
+        }
+
+        output_a = AutoDict.from_dict(dict_a)
+        assert a == output_a
+    
+    def test_to_dict_with_inherited_hidden_fields_with_constructor_args(self):
+        a = A5('name', 10)
+        dict_a = AutoDict.to_dict(a)
+
+        assert dict_a == {
+            '_protected_value': 'name',
+            '_A4__private_value': 10,
+            '@': 'A5'
+        }
+ 
+        output_a = AutoDict.from_dict(dict_a)
+        assert a == output_a
 
     @dictable
     class B:
