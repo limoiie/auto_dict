@@ -55,6 +55,24 @@ def dictable(Cls: T = None, name=None, to_dict=None, from_dict=None) -> T:
     return inner(Cls) if Cls else inner
 
 
+def to_dictable(cls: T = None, name=None, to_dict=None):
+    try:
+        meta = AutoDict.meta_of(cls)
+        from_dict = meta.get('from_dict') or unable_from_dict
+    except KeyError:
+        from_dict = unable_from_dict
+    return dictable(cls, name=name, to_dict=to_dict, from_dict=from_dict)
+
+
+def from_dictable(cls: T = None, name=None, from_dict=None):
+    try:
+        meta = AutoDict.meta_of(cls)
+        to_dict = meta.get('to_dict') or unable_to_dict
+    except KeyError:
+        to_dict = unable_to_dict
+    return dictable(cls, name=name, to_dict=to_dict, from_dict=from_dict)
+
+
 class Dictable(SubclassRegistry):
     """
     Base class for these classes that want to be dictable.
