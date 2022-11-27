@@ -3,7 +3,7 @@
 [![AutoDict unit tests](https://github.com/limoiie/autodict/actions/workflows/python-package.yml/badge.svg?branch=master)](https://github.com/limoiie/autodict/actions?branch=master)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/5842f736f8404c1ababfd439b5eeea05)](https://www.codacy.com/gh/limoiie/autodict/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=limoiie/autodict&amp;utm_campaign=Badge_Grade)
 
-AutoDict is a package for transforming between python objects and dicts, where 
+AutoDict is a package for transforming between python objects and dicts, where
 the dicts contain only python builtin objects.
 
 A use case of `AutoDict` will be converting python objects to/from dict to
@@ -11,6 +11,17 @@ automatically support any kinds of serialization/deserialization, such as json
 or yaml.
 
 ## Get started
+
+### Install from source code
+
+Run in the shell:
+
+```shell
+git clone https://github.com/limoiie/autodict.git
+cd autodict && python -m pip install .
+```
+
+### Introduction
 
 A simple example may be like:
 
@@ -159,6 +170,36 @@ o_student = AutoDict.from_dict(student_dict, cls=Student)
 assert student == o_student
 ```
 
+### Deal with private fields
+
+Protected and private fields are also supported. Before trying to instantiate
+the class with constructor, the trivial prefix will be striped out of keys of
+dict, as shown as:
+
+```python
+from autodict import AutoDict, Dictable
+
+
+class Student(Dictable):
+    def __init__(self, name, age):
+        self._name = name
+        self.__age = age
+
+    def __eq__(self, other): ...
+
+
+student = Student(name='limo', age=90)
+student_dict = AutoDict.to_dict(student)
+assert student_dict == {'_name': 'limo', '_Student__age': 90, '@': 'Student'}
+
+output_student = AutoDict.from_dict(student_dict)
+assert student == output_student
+```
+
+When a class has a private field, the key for that field in the `__dict__` would
+be prefixed with `_{cls.__name__}`. That's why the key for `Student.__age` in
+the output dict is prefixed with '_Student'.
+
 ### Overwrite default transformation behavior
 
 The default to_dict reads objects' field `__dict__` to generate dict structure.
@@ -248,7 +289,7 @@ class Student(Dictable):
     def __init__(self, name, age):
         self.name = name
         self.age = age
-    
+
     @classmethod
     def _from_dict(cls, dic: dict):
         return unable_from_dict(cls, dic)
