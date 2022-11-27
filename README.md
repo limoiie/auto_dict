@@ -17,8 +17,7 @@ or yaml.
 Run in the shell:
 
 ```shell
-git clone https://github.com/limoiie/autodict.git
-cd autodict && python -m pip install .
+python -m pip install git+https://github.com/limoiie/autodict.git@v0.0.3
 ```
 
 ### Introduction
