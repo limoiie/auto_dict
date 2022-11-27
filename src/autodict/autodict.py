@@ -27,7 +27,7 @@ class UnableFromDict(Exception):
 def dictable(Cls: T = None, name=None, to_dict=None, from_dict=None) \
         -> T or Callable[[T], T]:
     """
-    Mark [Cls] as dictable.
+    Annotate [Cls] as dictable.
 
     The default transformation behavior can be overwritten by providing custom
     implementations.
@@ -58,6 +58,16 @@ def dictable(Cls: T = None, name=None, to_dict=None, from_dict=None) \
 
 def to_dictable(cls: T = None, name=None, to_dict=None) \
         -> T or Callable[[T], T]:
+    """
+    Annotate [cls] as to_dictable.
+
+    :param cls: The class want to be dictable.
+    :param name: The annotation name that may be embedded into dict.
+    :param to_dict: A custom function to transform an instance of class `Cls` to
+      a dictionary, where the fields can be still objects. None for
+      using :py:func:`default_to_dict`.
+    :return: the original type.
+    """
     try:
         meta = AutoDict.meta_of(cls)
         from_dict = meta.get('from_dict') or unable_from_dict
@@ -68,6 +78,15 @@ def to_dictable(cls: T = None, name=None, to_dict=None) \
 
 def from_dictable(cls: T = None, name=None, from_dict=None) \
         -> T or Callable[[T], T]:
+    """
+    Annotate [cls] as from_dictable.
+
+    :param cls: The class want to be dictable.
+    :param name: The annotation name that may be embedded into dict.
+    :param from_dict: A custom function to transform a dictionary to an instance
+      of class `Cls`, where the fields are already transformed.
+    :return: the original type.
+    """
     try:
         meta = AutoDict.meta_of(cls)
         to_dict = meta.get('to_dict') or unable_to_dict
