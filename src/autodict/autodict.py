@@ -287,7 +287,7 @@ class AutoDict(Registry):
 
     @staticmethod
     def _embed_class(typ: type, dic: dict, with_cls: bool):
-        if with_cls and isinstance(dic, dict):
+        if with_cls and not _is_builtin(typ) and isinstance(dic, dict):
             dic[AutoDict.CLS_ANNO_KEY] = typ.__name__
 
     @staticmethod
