@@ -215,7 +215,7 @@ class AutoDict(Registry):
         :raises UnFromDictable: if there is non-builtin object is not
           from_dictable.
         """
-        embedded_cls = AutoDict._extract_class(dic)
+        embedded_cls = AutoDict._extract_class(dic, strict)
         cls = cls or embedded_cls
 
         if recursively:
@@ -291,13 +291,20 @@ class AutoDict(Registry):
             dic[AutoDict.CLS_ANNO_KEY] = typ.__name__
 
     @staticmethod
-    def _extract_class(dic):
+    def _extract_class(dic, strict: bool):
         if not isinstance(dic, dict) or AutoDict.CLS_ANNO_KEY not in dic:
             return None
 
         cls_name = dic[AutoDict.CLS_ANNO_KEY]
-        del dic[AutoDict.CLS_ANNO_KEY]
-        return AutoDict.query(name=cls_name)
+        cls = AutoDict.query(name=cls_name)
+
+        if cls is None:
+            if strict:
+                raise UnableFromDict(cls_name)
+        else:
+            del dic[AutoDict.CLS_ANNO_KEY]
+
+        return cls
 
 
 def default_to_dict(obj):
