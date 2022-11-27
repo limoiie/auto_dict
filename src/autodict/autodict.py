@@ -3,7 +3,7 @@ import enum
 import importlib
 import inspect
 from collections import OrderedDict
-from typing import Any, Dict, ForwardRef, Type, TypeVar
+from typing import Any, Callable, Dict, ForwardRef, Optional, Type, TypeVar
 
 from registry import Registry, SubclassRegistry
 
@@ -24,7 +24,8 @@ class UnableFromDict(Exception):
         )
 
 
-def dictable(Cls: T = None, name=None, to_dict=None, from_dict=None) -> T:
+def dictable(Cls: T = None, name=None, to_dict=None, from_dict=None) \
+        -> T or Callable[[T], T]:
     """
     Mark [Cls] as dictable.
 
@@ -55,7 +56,8 @@ def dictable(Cls: T = None, name=None, to_dict=None, from_dict=None) -> T:
     return inner(Cls) if Cls else inner
 
 
-def to_dictable(cls: T = None, name=None, to_dict=None):
+def to_dictable(cls: T = None, name=None, to_dict=None) \
+        -> T or Callable[[T], T]:
     try:
         meta = AutoDict.meta_of(cls)
         from_dict = meta.get('from_dict') or unable_from_dict
@@ -64,7 +66,8 @@ def to_dictable(cls: T = None, name=None, to_dict=None):
     return dictable(cls, name=name, to_dict=to_dict, from_dict=from_dict)
 
 
-def from_dictable(cls: T = None, name=None, from_dict=None):
+def from_dictable(cls: T = None, name=None, from_dict=None) \
+        -> T or Callable[[T], T]:
     try:
         meta = AutoDict.meta_of(cls)
         to_dict = meta.get('to_dict') or unable_to_dict
@@ -211,7 +214,7 @@ class AutoDict(Registry):
         return obj
 
     @staticmethod
-    def infer_type(dic):
+    def infer_type(dic) -> Optional[Type]:
         """
         Infer type from the given dictionary.
 
