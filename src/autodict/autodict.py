@@ -421,7 +421,7 @@ def _resolve_cls(cls_ref: type or str or ForwardRef, ctx_module: str = None):
             module = importlib.import_module(module_name)
             inner_module_ref = cls_name
 
-        except ModuleNotFoundError:
+        except (ModuleNotFoundError, ValueError):
             module = importlib.import_module(ctx_module)
             inner_module_ref = cls_ref
 
