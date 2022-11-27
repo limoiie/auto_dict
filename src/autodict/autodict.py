@@ -222,7 +222,7 @@ class AutoDict(Registry):
             return None
         try:
             return AutoDict.query(name=dic[AutoDict.CLS_ANNO_KEY])
-        except ValueError or KeyError:
+        except (ValueError, KeyError):
             return None
 
     @staticmethod
