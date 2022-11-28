@@ -14,10 +14,10 @@ or yaml.
 
 ### Install from source code
 
-Run in the shell:
+Run following in a shell:
 
 ```shell
-python -m pip install git+https://github.com/limoiie/autodict.git@v0.0.3
+python -m pip install git+https://github.com/limoiie/autodict.git@v0.0.4
 ```
 
 ### Introduction
