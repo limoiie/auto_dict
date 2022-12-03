@@ -10,6 +10,7 @@ from autodict.autodict import Dictable, UnableFromDict, UnableToDict, \
     from_dictable, to_dictable
 
 
+# todo: duplicate all annotator-style classes in derive style, and reuse cases
 @dictable
 class A:
     def __init__(self, str_value, int_value):
@@ -23,6 +24,18 @@ class A:
 
     def __str__(self):
         return f'({self.str_value}, {self.int_value})'
+
+
+@dictable(name='SomeA')
+class A1:
+    def __init__(self, str_value, int_value):
+        self.str_value = str_value
+        self.int_value = int_value
+
+    def __eq__(self, other):
+        return isinstance(other, A1) and \
+            self.str_value == other.str_value and \
+            self.int_value == other.int_value
 
 
 class A2:
@@ -183,6 +196,13 @@ def generate_good_cases() -> List[good_case]:
             obj=A(str_value='limo', int_value=10),
             dic={'str_value': 'limo', 'int_value': 10, },
             with_cls=False,
+            strict=True,
+        ),
+        good_case(
+            name='with embedded class info but customized name',
+            obj=A1(str_value='limo', int_value=10),
+            dic={'str_value': 'limo', 'int_value': 10, '@': 'SomeA', },
+            with_cls=True,
             strict=True,
         ),
         good_case(
@@ -518,6 +538,27 @@ class TestDerive:
         dict_f = AutoDict.to_dict(f)
         assert dict_f == {
             'str_value': 'limo', 'int_value': 10, '@': 'F'
+        }
+
+        output_f = AutoDict.from_dict(dict_f, TestDerive.F)
+        assert f == output_f
+
+    class F1(Dictable, name='SomeF'):
+        def __init__(self, str_value, int_value):
+            self.str_value = str_value
+            self.int_value = int_value
+
+        def __eq__(self, other):
+            return isinstance(other, TestDerive.F) and \
+                self.str_value == other.str_value and \
+                self.int_value == other.int_value
+
+    def test_derive_without_overwritten_but_customized_name(self):
+        f = TestDerive.F1(str_value='limo', int_value=10)
+
+        dict_f = AutoDict.to_dict(f)
+        assert dict_f == {
+            'str_value': 'limo', 'int_value': 10, '@': 'SomeF'
         }
 
         output_f = AutoDict.from_dict(dict_f, TestDerive.F)
