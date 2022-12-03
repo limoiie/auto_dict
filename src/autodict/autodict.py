@@ -1,4 +1,5 @@
 import copy
+import dataclasses
 import enum
 import importlib
 import inspect
@@ -22,6 +23,17 @@ class UnableFromDict(Exception):
         super().__init__(
             f'{cls}, please mark it as from_dictable.'
         )
+
+
+@dataclasses.dataclass
+class Meta:
+    name: str
+
+
+@dataclasses.dataclass
+class ExtendedMeta(Meta):
+    to_dict: Optional[Callable[[Any], dict]] = None
+    from_dict: Optional[Callable[[Type[T], dict], T]] = None
 
 
 def dictable(Cls: T = None, name=None, to_dict=None, from_dict=None) \
@@ -70,7 +82,7 @@ def to_dictable(cls: T = None, name=None, to_dict=None) \
     """
     try:
         meta = AutoDict.meta_of(cls)
-        from_dict = meta.get('from_dict') or unable_from_dict
+        from_dict = meta.from_dict or unable_from_dict
     except KeyError:
         from_dict = unable_from_dict
     return dictable(cls, name=name, to_dict=to_dict, from_dict=from_dict)
@@ -89,19 +101,23 @@ def from_dictable(cls: T = None, name=None, from_dict=None) \
     """
     try:
         meta = AutoDict.meta_of(cls)
-        to_dict = meta.get('to_dict') or unable_to_dict
+        to_dict = meta.to_dict or unable_to_dict
     except KeyError:
         to_dict = unable_to_dict
     return dictable(cls, name=name, to_dict=to_dict, from_dict=from_dict)
 
 
-class Dictable(SubclassRegistry):
+class Dictable(SubclassRegistry[Meta]):
     """
     Base class for these classes that want to be dictable.
 
     Any classes that derive this class will be automatically marked as dictable.
     The transformation behavior can be overwritten.
     """
+
+    def __init_subclass__(cls, name=None):
+        name = name or cls.__name__
+        Dictable.center()[cls] = Meta(name=name)
 
     def _to_dict(self) -> dict:
         """
@@ -159,7 +175,7 @@ class Dictable(SubclassRegistry):
         return AutoDict.from_dict(dic, cls, cls.__module__, strict=strict)
 
 
-class AutoDict(Registry):
+class AutoDict(Registry[ExtendedMeta]):
     CLS_ANNO_KEY = '@'
 
     @staticmethod
@@ -183,7 +199,7 @@ class AutoDict(Registry):
             # noinspection PyProtectedMember
             dic = obj._to_dict()
         elif AutoDict.registered(cls):
-            dic = AutoDict.meta_of(cls)['to_dict'](obj)
+            dic = AutoDict.meta_of(cls).to_dict(obj)
         elif _is_builtin(cls) or not strict:
             dic = obj
         else:
@@ -224,7 +240,7 @@ class AutoDict(Registry):
         if inspect.isclass(cls) and issubclass(cls, Dictable):
             obj = cls._from_dict(dic)
         elif AutoDict.registered(cls):
-            obj = AutoDict.meta_of(cls)['from_dict'](cls, dic)
+            obj = AutoDict.meta_of(cls).from_dict(cls, dic)
         elif cls is None or _is_builtin(cls) or not strict:
             obj = dic
         else:
