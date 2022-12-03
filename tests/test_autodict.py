@@ -1,3 +1,4 @@
+import dataclasses
 import enum
 import pathlib
 from collections import namedtuple
@@ -177,6 +178,12 @@ class B6:
             self.color == other.color
 
 
+@dataclasses.dataclass
+class D:
+    str_value: str
+    int_values: List[int]
+
+
 good_case = namedtuple('GC', 'obj,dic,with_cls,strict,name')
 
 bad_case = namedtuple('BC', 'obj,dic,with_cls,strict,exc,raises,name')
@@ -331,6 +338,14 @@ def generate_good_cases() -> List[good_case]:
                  }},
             with_cls=True,
             strict=False,
+        ),
+        good_case(
+            name='native support to dataclasses',
+            obj=D(str_value='limo', int_values=[10, 20]),
+            dic={'str_value': 'limo',
+                 'int_values': [10, 20]},
+            with_cls=False,
+            strict=True,
         ),
     ]
 

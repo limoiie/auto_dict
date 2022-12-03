@@ -4,7 +4,7 @@ import enum
 import importlib
 import inspect
 from collections import OrderedDict
-from typing import Any, Callable, Dict, ForwardRef, Optional, Type, TypeVar
+from typing import Any, Callable, ForwardRef, Optional, Type, TypeVar
 
 from registry import Registry
 
@@ -53,7 +53,6 @@ def dictable(Cls: T = None, name=None, to_dict=None, from_dict=None) \
       of class `Cls`, where the fields are already transformed.
     :return: the original type.
     """
-    # todo: native support for dataclasses
 
     def inner(cls):
         if issubclass(cls, enum.Enum):
@@ -199,18 +198,20 @@ class AutoDict(Registry[ExtendedMeta]):
 
         if obj and isinstance(obj, Dictable):
             # noinspection PyProtectedMember
-            dic = obj._to_dict()
+            dic, is_pure_dataclass = obj._to_dict(), False
         elif AutoDict.registered(cls):
-            dic = AutoDict.meta_of(cls).to_dict(obj)
+            dic, is_pure_dataclass = AutoDict.meta_of(cls).to_dict(obj), False
+        elif dataclasses.is_dataclass(obj):
+            dic, is_pure_dataclass = dataclass_to_dict(obj), True
         elif _is_builtin(cls) or not strict:
-            dic = obj
+            dic, is_pure_dataclass = obj, False
         else:
             raise UnableToDict(cls)
 
         if recursively:
             dic = AutoDict._to_dict_for_items(dic, with_cls, strict=strict)
 
-        AutoDict._embed_class(cls, dic, with_cls)
+        AutoDict._embed_class(cls, dic, with_cls and not is_pure_dataclass)
         return dic
 
     @staticmethod
@@ -243,6 +244,8 @@ class AutoDict(Registry[ExtendedMeta]):
             obj = cls._from_dict(dic)
         elif AutoDict.registered(cls):
             obj = AutoDict.meta_of(cls).from_dict(cls, dic)
+        elif dataclasses.is_dataclass(cls):
+            obj = dataclass_from_dict(cls, dic)
         elif cls is None or _is_builtin(cls) or not strict:
             obj = dic
         else:
@@ -331,7 +334,7 @@ def default_to_dict(obj):
     return copy.copy(obj.__dict__)
 
 
-def default_from_dict(cls: Type[T], dic: Dict[str, Any]) -> T:
+def default_from_dict(cls: Type[T], dic: dict) -> T:
     # todo: support mixin style construction
     try:
         obj = cls()
@@ -344,19 +347,27 @@ def default_from_dict(cls: Type[T], dic: Dict[str, Any]) -> T:
     return obj
 
 
-def enum_to_dict(enum_obj: enum.Enum) -> dict:
-    return dict(value=enum_obj.value, name=enum_obj.name)
+def enum_to_dict(obj: enum.Enum) -> dict:
+    return dict(value=obj.value, name=obj.name)
 
 
-def enum_from_dict(cls: Type[T], enum_dic: dict) -> T:
-    enum_name = enum_dic['name']
-    enum_value = enum_dic['value']
+def enum_from_dict(cls: Type[T], dic: dict) -> T:
+    enum_name = dic['name']
+    enum_value = dic['value']
 
     obj = cls(enum_value)
     assert obj.name == enum_name, \
         f'Inconsistent enum {cls} value {enum_value}: \n' \
         f'  expect name {obj.name}, but get name {enum_name}.'
     return obj
+
+
+def dataclass_to_dict(obj) -> dict:
+    return dict((f.name, getattr(obj, f.name)) for f in dataclasses.fields(obj))
+
+
+def dataclass_from_dict(cls: Type[T], dic: dict) -> T:
+    return cls(**dic)
 
 
 def unable_to_dict(obj) -> dict:
