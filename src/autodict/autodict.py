@@ -6,7 +6,7 @@ import inspect
 from collections import OrderedDict
 from typing import Any, Callable, Dict, ForwardRef, Optional, Type, TypeVar
 
-from registry import Registry, SubclassRegistry
+from registry import Registry
 
 T = TypeVar('T')
 
@@ -53,16 +53,19 @@ def dictable(Cls: T = None, name=None, to_dict=None, from_dict=None) \
       of class `Cls`, where the fields are already transformed.
     :return: the original type.
     """
-    if issubclass(Cls, enum.Enum):
-        to_dict = to_dict or enum_to_dict
-        from_dict = from_dict or enum_from_dict
-    else:
-        to_dict = to_dict or default_to_dict
-        from_dict = from_dict or default_from_dict
+    # todo: native support for dataclasses
 
     def inner(cls):
+        if issubclass(cls, enum.Enum):
+            to_dict_ = to_dict or enum_to_dict
+            from_dict_ = from_dict or enum_from_dict
+        else:
+            to_dict_ = to_dict or default_to_dict
+            from_dict_ = from_dict or default_from_dict
+
         name_ = name or cls.__name__
-        AutoDict.register(name=name_, to_dict=to_dict, from_dict=from_dict)(cls)
+        AutoDict.register(
+            name=name_, to_dict=to_dict_, from_dict=from_dict_)(cls)
         return cls
 
     return inner(Cls) if Cls else inner
@@ -107,7 +110,7 @@ def from_dictable(cls: T = None, name=None, from_dict=None) \
     return dictable(cls, name=name, to_dict=to_dict, from_dict=from_dict)
 
 
-class Dictable(SubclassRegistry[Meta]):
+class Dictable:
     """
     Base class for these classes that want to be dictable.
 
@@ -115,9 +118,8 @@ class Dictable(SubclassRegistry[Meta]):
     The transformation behavior can be overwritten.
     """
 
-    def __init_subclass__(cls, name=None):
-        name = name or cls.__name__
-        Dictable.center()[cls] = Meta(name=name)
+    def __init_subclass__(cls, name=None, to_dict=None, from_dict=None):
+        dictable(cls, name=name, to_dict=to_dict, from_dict=from_dict)
 
     def _to_dict(self) -> dict:
         """
@@ -283,6 +285,7 @@ class AutoDict(Registry[ExtendedMeta]):
                 dic, lambda v, k: AutoDict.from_dict(v, infer_ty(k), module,
                                                      strict=strict))
 
+        # todo: refactor as collection type
         elif hasattr(cls, '__origin__'):
             # infer item type from template args of typing._GenericAlias
             container_cls = cls.__origin__
@@ -294,6 +297,7 @@ class AutoDict(Registry[ExtendedMeta]):
                 dic, lambda v, _: AutoDict.from_dict(v, item_cls, module,
                                                      strict=strict))
 
+        # todo: support Optional, Union, ...
         else:
             dic = _map(
                 dic, lambda v, _: AutoDict.from_dict(v, module=module,
@@ -304,7 +308,7 @@ class AutoDict(Registry[ExtendedMeta]):
     @staticmethod
     def _embed_class(typ: type, dic: dict, with_cls: bool):
         if with_cls and not _is_builtin(typ) and isinstance(dic, dict):
-            dic[AutoDict.CLS_ANNO_KEY] = typ.__name__
+            dic[AutoDict.CLS_ANNO_KEY] = AutoDict.meta_of(typ).name
 
     @staticmethod
     def _extract_class(dic, strict: bool):
@@ -328,6 +332,7 @@ def default_to_dict(obj):
 
 
 def default_from_dict(cls: Type[T], dic: Dict[str, Any]) -> T:
+    # todo: support mixin style construction
     try:
         obj = cls()
         obj.__dict__.update(**dic)
