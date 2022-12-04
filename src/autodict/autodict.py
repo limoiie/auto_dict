@@ -314,7 +314,8 @@ def _items_from_dict_generic_non_collection(dic, cls, fn_transform):
 
     if is_generic_literal(cls):
         cand_literals = inspect_generic_templ_args(cls)
-        return dic in cand_literals
+        assert dic in cand_literals
+        return dic
 
     return dic
 
