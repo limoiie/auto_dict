@@ -7,8 +7,8 @@ from typing import List
 import pytest
 
 from autodict import AutoDict, dictable
-from autodict.autodict import Dictable, UnableFromDict, UnableToDict, \
-    from_dictable, to_dictable
+from autodict.autodict import Dictable, from_dictable, to_dictable
+from autodict.errors import UnableFromDict, UnableToDict
 
 
 # todo: duplicate all annotator-style classes in derive style, and reuse cases
@@ -463,8 +463,8 @@ class TestAnnotate:
     @pytest.mark.parametrize('case', generate_good_cases(), ids=case_name)
     def test_from_dict(self, case: good_case):
         cls = None if case.with_cls else type(case.obj)
-        assert AutoDict.from_dict(case.dic, cls=cls,
-                                  strict=case.strict) == case.obj
+        output_obj = AutoDict.from_dict(case.dic, cls=cls, strict=case.strict)
+        assert output_obj == case.obj
 
     @pytest.mark.parametrize('case', generate_bad_cases(), ids=case_name)
     def test_failed_to_or_from_dict(self, case: bad_case):

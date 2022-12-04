@@ -281,7 +281,7 @@ If you derive `Dictable`, you can achieve partially dictable by calling function
 
 ```python
 from autodict import AutoDict, Dictable
-from autodict.autodict import unable_from_dict
+from autodict.predefined import unable_from_dict
 
 
 class Student(Dictable):

@@ -1,37 +1,28 @@
-import copy
 import dataclasses
 import enum
-import importlib
 import inspect
-from collections import OrderedDict
-from typing import Any, Callable, ForwardRef, Optional, Type, TypeVar
+# noinspection PyUnresolvedReferences,PyProtectedMember
+from typing import Any, Callable, ForwardRef, List, Literal, Mapping, Optional, \
+    Tuple, \
+    Type, TypeVar, Union, _GenericAlias, get_type_hints
 
 from registry import Registry
 
-T = TypeVar('T')
-
-
-class UnableToDict(Exception):
-    def __init__(self, cls: type or None):
-        super().__init__(
-            f'{cls}, please mark it as to_dictable.'
-        )
-
-
-class UnableFromDict(Exception):
-    def __init__(self, cls: type or None):
-        super().__init__(
-            f'{cls}, please mark it as from_dictable.'
-        )
+from autodict.errors import UnableFromDict, UnableToDict
+from autodict.mapping_factory import mapping_builder
+from autodict.predefined import dataclass_from_dict, dataclass_to_dict, \
+    default_from_dict, \
+    default_to_dict, \
+    enum_from_dict, enum_to_dict, unable_from_dict, unable_to_dict
+from autodict.types import T, has_annotations, inspect_generic_origin, \
+    inspect_generic_templ_args, \
+    is_builtin, is_generic, is_generic_collection, is_generic_union, \
+    stable_map
 
 
 @dataclasses.dataclass
 class Meta:
     name: str
-
-
-@dataclasses.dataclass
-class ExtendedMeta(Meta):
     to_dict: Optional[Callable[[Any], dict]] = None
     from_dict: Optional[Callable[[Type[T], dict], T]] = None
 
@@ -176,7 +167,7 @@ class Dictable:
         return AutoDict.from_dict(dic, cls, cls.__module__, strict=strict)
 
 
-class AutoDict(Registry[ExtendedMeta]):
+class AutoDict(Registry[Meta]):
     CLS_ANNO_KEY = '@'
 
     @staticmethod
@@ -203,20 +194,23 @@ class AutoDict(Registry[ExtendedMeta]):
             dic, is_pure_dataclass = AutoDict.meta_of(cls).to_dict(obj), False
         elif dataclasses.is_dataclass(obj):
             dic, is_pure_dataclass = dataclass_to_dict(obj), True
-        elif _is_builtin(cls) or not strict:
+        elif is_builtin(cls) or not strict:
             dic, is_pure_dataclass = obj, False
         else:
             raise UnableToDict(cls)
 
         if recursively:
-            dic = AutoDict._to_dict_for_items(dic, with_cls, strict=strict)
+            def fn_transform(obj_):
+                return AutoDict.to_dict(obj_, with_cls=with_cls, strict=strict)
+
+            dic = _items_to_dict(dic, fn_transform)
 
         AutoDict._embed_class(cls, dic, with_cls and not is_pure_dataclass)
         return dic
 
     @staticmethod
-    def from_dict(dic: dict or T, cls: Type[T] = None, module=None,
-                  recursively=True, strict=True) -> T:
+    def from_dict(dic: dict or T, cls: Type[T] = None, recursively=True,
+                  strict=True) -> T:
         """
         Instantiate an object from a dictionary.
 
@@ -224,8 +218,6 @@ class AutoDict(Registry[ExtendedMeta]):
           instantiation.
         :param cls: The class that is going to be instantiated against. If
           providing `None`, the real class will be inferred from the dictionary.
-        :param module: The module path of the current class. This is used to
-          provide module information for these local annotation type strings.
         :param recursively: A boolean value indicating if transforms
           items/fields or not.
         :param strict: If true, raise :py:exc:`UnFromDictable` when there is
@@ -235,10 +227,13 @@ class AutoDict(Registry[ExtendedMeta]):
           from_dictable.
         """
         embedded_cls = AutoDict._extract_class(dic, strict)
-        cls = cls or embedded_cls
+        cls = embedded_cls or cls if is_generic_union(cls) else cls or embedded_cls
 
         if recursively:
-            dic = AutoDict._from_dict_for_items(dic, cls, module, strict=strict)
+            def rec(item_dic, item_cls):
+                return AutoDict.from_dict(item_dic, item_cls, strict=strict)
+
+            dic = _items_from_dict(dic, cls, rec)
 
         if inspect.isclass(cls) and issubclass(cls, Dictable):
             obj = cls._from_dict(dic)
@@ -246,7 +241,7 @@ class AutoDict(Registry[ExtendedMeta]):
             obj = AutoDict.meta_of(cls).from_dict(cls, dic)
         elif dataclasses.is_dataclass(cls):
             obj = dataclass_from_dict(cls, dic)
-        elif cls is None or _is_builtin(cls) or not strict:
+        elif cls is None or is_builtin(cls) or not strict:
             obj = dic
         else:
             raise UnableFromDict(cls)
@@ -254,63 +249,8 @@ class AutoDict(Registry[ExtendedMeta]):
         return obj
 
     @staticmethod
-    def infer_type(dic) -> Optional[Type]:
-        """
-        Infer type from the given dictionary.
-
-        Normally, the type information was embedded into the dictionary under
-        the key of `AutoDict.CLS_ANNO_KEY`
-        """
-        if not isinstance(dic, dict):
-            return None
-        try:
-            return AutoDict.query(name=dic[AutoDict.CLS_ANNO_KEY])
-        except (ValueError, KeyError):
-            return None
-
-    @staticmethod
-    def _to_dict_for_items(obj, with_cls, strict):
-        obj = _map(
-            obj, lambda v, _: AutoDict.to_dict(v, with_cls, strict=strict))
-        return obj
-
-    @staticmethod
-    def _from_dict_for_items(dic, cls, module, strict):
-        if hasattr(cls, '__annotations__'):
-            module = module or cls.__module__
-
-            # infer field type from class annotations
-            def infer_ty(field: str):
-                anno_cls = cls.__annotations__.get(field)
-                return _resolve_cls(anno_cls, module)
-
-            dic = _map(
-                dic, lambda v, k: AutoDict.from_dict(v, infer_ty(k), module,
-                                                     strict=strict))
-
-        # todo: refactor as collection type
-        elif hasattr(cls, '__origin__'):
-            # infer item type from template args of typing._GenericAlias
-            container_cls = cls.__origin__
-            item_cls = cls.__args__[0] \
-                if not issubclass(container_cls, dict) else cls.__args__[1]
-            item_cls = _resolve_cls(item_cls, module)
-
-            dic = _map(
-                dic, lambda v, _: AutoDict.from_dict(v, item_cls, module,
-                                                     strict=strict))
-
-        # todo: support Optional, Union, ...
-        else:
-            dic = _map(
-                dic, lambda v, _: AutoDict.from_dict(v, module=module,
-                                                     strict=strict))
-
-        return dic
-
-    @staticmethod
     def _embed_class(typ: type, dic: dict, with_cls: bool):
-        if with_cls and not _is_builtin(typ) and isinstance(dic, dict):
+        if with_cls and not is_builtin(typ) and isinstance(dic, Mapping):
             dic[AutoDict.CLS_ANNO_KEY] = AutoDict.meta_of(typ).name
 
     @staticmethod
@@ -330,136 +270,59 @@ class AutoDict(Registry[ExtendedMeta]):
         return cls
 
 
-def default_to_dict(obj):
-    return copy.copy(obj.__dict__)
+def _items_to_dict(obj, fn_transform):
+    return stable_map(obj, lambda v, _: fn_transform(v))
 
 
-def default_from_dict(cls: Type[T], dic: dict) -> T:
-    # todo: support mixin style construction
-    try:
-        obj = cls()
-        obj.__dict__.update(**dic)
-    except TypeError:
-        obj = cls(**{
-            _strip_hidden_field_prefix(cls, field): val
-            for field, val in dic.items()
-        })
-    return obj
+def _items_from_dict(dic, cls, fn_transform):
+    if has_annotations(cls):
+        return _items_from_dict_annotated_class(dic, cls, fn_transform)
+
+    if is_generic_collection(cls):
+        return _items_from_dict_generic_collection(dic, cls, fn_transform)
+
+    if is_generic(cls):  # is instance of _GenericAlias
+        return _items_from_dict_generic_non_collection(dic, cls, fn_transform)
+
+    return stable_map(dic, lambda v, _: fn_transform(v, None))
 
 
-def enum_to_dict(obj: enum.Enum) -> dict:
-    return dict(value=obj.value, name=obj.name)
+def _items_from_dict_annotated_class(dic, cls, fn_transform):
+    annotations = get_type_hints(cls)
+    return stable_map(dic, lambda v, k: fn_transform(v, annotations.get(k)))
 
 
-def enum_from_dict(cls: Type[T], dic: dict) -> T:
-    enum_name = dic['name']
-    enum_value = dic['value']
+def _items_from_dict_generic_non_collection(obj, cls, fn_transform):
+    # todo: handle union and literals
+    if cls.__origin__ is Union:
+        pass
 
-    obj = cls(enum_value)
-    assert obj.name == enum_name, \
-        f'Inconsistent enum {cls} value {enum_value}: \n' \
-        f'  expect name {obj.name}, but get name {enum_name}.'
-    return obj
-
-
-def dataclass_to_dict(obj) -> dict:
-    return dict((f.name, getattr(obj, f.name)) for f in dataclasses.fields(obj))
-
-
-def dataclass_from_dict(cls: Type[T], dic: dict) -> T:
-    return cls(**dic)
-
-
-def unable_to_dict(obj) -> dict:
-    raise UnableToDict(type(obj))
-
-
-def unable_from_dict(cls: Type[T], _dic: dict) -> T:
-    raise UnableFromDict(cls)
-
-
-def _is_builtin(cls: type):
-    return hasattr(cls, '__module__') and \
-        cls.__module__ in (object.__module__, 'collections', 'typing')
-
-
-def _is_collection(cls):
-    return issubclass(cls, (list, set, tuple, dict, OrderedDict))
-
-
-def _strip_hidden_field_prefix(cls: type, key: str):
-    if not key.startswith('_'):
-        return key
-
-    if '__' in key:
-        prefix = f'_{cls.__name__}__'
-        if key.startswith(prefix):
-            return key[len(prefix):]
-
-        for parent_cls in cls.__bases__:
-            strip_key = _strip_hidden_field_prefix(parent_cls, key)
-            if len(strip_key) + 1 < len(key):
-                return strip_key
-
-    return key[1:]
-
-
-def _map(obj, mapper):
-    """
-    Transform each item of `obj` with `mapper`.
-
-    :param obj: A collection like object
-    :param mapper: A transform function.
-    """
-    typ = type(obj)
-
-    if typ is list:
-        return list(mapper(item, None) for item in obj)
-
-    if typ is set:
-        return set(mapper(item, None) for item in obj)
-
-    if typ is tuple:
-        return tuple(mapper(item, None) for item in obj)
-
-    if typ is dict:
-        return dict({key: mapper(item, key) for key, item in obj.items()})
-
-    if typ is OrderedDict:
-        return OrderedDict({key: mapper(val, key) for key, val in obj.items()})
+    if cls.__origin__ is Literal:
+        assert obj in cls.__args__
+        return obj
 
     return obj
 
 
-def _resolve_cls(cls_ref: type or str or ForwardRef, ctx_module: str = None):
-    """
-    Resolve class by a class reference.
+def _items_from_dict_generic_collection(obj, cls, fn_transform):
+    # infer item type from template args of typing._GenericAlias
+    data_cls = inspect_generic_origin(cls)
 
-    :param cls_ref: A reference to a class, either directly be a class type, or
-      be a full class path, or be an inner module path, or be a `ForwardRef`.
-    :param ctx_module: Module path. This is used only when `cls_ref` is an inner
-      module path.
-    :return: the resolved class.
-    """
-    if not cls_ref:
-        return
+    if issubclass(data_cls, Mapping):
+        key_cls, val_cls = inspect_generic_templ_args(cls, defaults=(Any, Any))
+        data_cls = mapping_builder(data_cls)
+        return data_cls((fn_transform(key, key_cls), fn_transform(val, val_cls))
+                        for key, val in obj.items())
 
-    if isinstance(cls_ref, ForwardRef):
-        cls_ref = cls_ref.__forward_arg__
+    if issubclass(data_cls, tuple):
+        item_classes = inspect_generic_templ_args(cls, defaults=(Any, ...))
+        if len(item_classes) == 2 and item_classes[-1] is ...:
+            item_classes = (item_classes[0],) * len(obj)
+        return data_cls(fn_transform(item, item_cls) for item, item_cls in
+                        zip(obj, item_classes))
 
-    if isinstance(cls_ref, str):
-        try:
-            module_name, cls_name = cls_ref.rsplit('.', maxsplit=1)
-            module = importlib.import_module(module_name)
-            inner_module_ref = cls_name
+    if issubclass(data_cls, (list, set, frozenset)):
+        item_cls, = inspect_generic_templ_args(cls, defaults=(Any,))
+        return data_cls(fn_transform(item, item_cls) for item in obj)
 
-        except (ModuleNotFoundError, ValueError):
-            module = importlib.import_module(ctx_module)
-            inner_module_ref = cls_ref
-
-        cls = module
-        for cls_name in inner_module_ref.split('.'):
-            cls = getattr(cls, cls_name)
-        return cls
-
-    return cls_ref
+    raise ValueError(f'Unhandled generic collection type: {data_cls}')
