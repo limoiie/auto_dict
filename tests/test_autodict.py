@@ -163,6 +163,28 @@ class AnnotatedListUnion:
             self.value == other.value
 
 
+try:
+    from typing import Literal
+
+    Literals = Literal['w+', 'r+']
+
+except ImportError:
+    Literal = str
+    Literals = Literal
+
+
+@dictable
+class AnnotatedLiteral:
+    value: Literals
+
+    def __init__(self, value):
+        self.value = value
+
+    def __eq__(self, other):
+        return isinstance(other, AnnotatedLiteral) and \
+            self.value == other.value
+
+
 @dictable
 class AnnotatedRef:
     b: 'NestDictable'
@@ -339,6 +361,13 @@ def generate_good_cases() -> List[GoodCase]:
                            {'str_value': 'o',
                             'int_value': 0},
                            ['string', 'value']]},
+            with_cls=False,
+            strict=False,
+        ),
+        GoodCase(
+            name='nested dictable with generic literal',
+            obj=AnnotatedLiteral(value='w+'),
+            dic={'value': 'w+'},
             with_cls=False,
             strict=False,
         ),
