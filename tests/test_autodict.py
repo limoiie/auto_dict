@@ -2,7 +2,7 @@ import dataclasses
 import enum
 import pathlib
 from collections import namedtuple
-from typing import List
+from typing import List, Union
 
 import pytest
 
@@ -11,15 +11,14 @@ from autodict.autodict import Dictable, from_dictable, to_dictable
 from autodict.errors import UnableFromDict, UnableToDict
 
 
-# todo: duplicate all annotator-style classes in derive style, and reuse cases
 @dictable
-class A:
+class Normal:
     def __init__(self, str_value, int_value):
         self.str_value = str_value
         self.int_value = int_value
 
     def __eq__(self, other):
-        return isinstance(other, A) and \
+        return isinstance(other, Normal) and \
             self.str_value == other.str_value and \
             self.int_value == other.int_value
 
@@ -28,68 +27,68 @@ class A:
 
 
 @dictable(name='SomeA')
-class A1:
+class CustomName:
     def __init__(self, str_value, int_value):
         self.str_value = str_value
         self.int_value = int_value
 
     def __eq__(self, other):
-        return isinstance(other, A1) and \
+        return isinstance(other, CustomName) and \
             self.str_value == other.str_value and \
             self.int_value == other.int_value
 
 
-class A2:
+class Unregistered:
     def __init__(self, str_value, int_value):
         self.str_value = str_value
         self.int_value = int_value
 
     def __eq__(self, other):
-        return isinstance(other, A2) and \
+        return isinstance(other, Unregistered) and \
             self.str_value == other.str_value and \
             self.int_value == other.int_value
 
 
 @dictable
-class A3:
+class WithEmptyConstructor:
     def __init__(self):
         self._protected_value = ''
         self.__private_value = 0
 
     @staticmethod
     def create(protected_value, private_value):
-        self = A3()
+        self = WithEmptyConstructor()
         self._protected_value = protected_value
         self.__private_value = private_value
         return self
 
     def __eq__(self, other):
-        return isinstance(other, A3) and \
+        return isinstance(other, WithEmptyConstructor) and \
             self._protected_value == other._protected_value and \
             self.__private_value == other.__private_value
 
 
 @dictable
-class A4:
+class WithHiddenMember:
     def __init__(self, protected_value, private_value):
         self._protected_value = protected_value
         self.__private_value = private_value
 
     def __eq__(self, other):
-        return isinstance(other, A4) and \
+        return isinstance(other, WithHiddenMember) and \
             self._protected_value == other._protected_value and \
             self.__private_value == other.__private_value
 
 
 @dictable
-class A5(A4):
+class WithInheritedHiddenMember(WithHiddenMember):
     def __init__(self, protected_value, private_value):
         super().__init__(protected_value, private_value)
 
 
 @dictable
-class B:
-    a: A
+class NestDictable:
+    a: Normal
 
     def __init__(self, a, count):
         self.a = a
@@ -100,50 +99,74 @@ class B:
 
 
 @dictable
-class B2:
-    a: A2
+class NestUnDictable:
+    a: Unregistered
 
     def __init__(self, a, count):
         self.a = a
         self.count = count
 
     def __eq__(self, other):
-        return isinstance(other, B2) and \
+        return isinstance(other, NestUnDictable) and \
             self.a == other.a and \
             self.count == other.count
 
 
-class B3:
-    a: A
+class UnDictableNest:
+    a: Normal
 
     def __init__(self, a, count):
         self.a = a
         self.count = count
 
     def __eq__(self, other):
-        return isinstance(other, B3) and \
+        return isinstance(other, UnDictableNest) and \
             self.a == other.a and \
             self.count == other.count
 
 
 @dictable
-class B4:
-    b_list: List[B]
+class AnnotatedList:
+    b_list: List[NestDictable]
 
     def __init__(self, b_list, count):
         self.b_list = b_list
         self.count = count
 
     def __eq__(self, other):
-        return isinstance(other, B4) and \
+        return isinstance(other, AnnotatedList) and \
             self.b_list == other.b_list and \
             self.count == other.count
 
 
 @dictable
-class B5:
-    b: 'B'
-    b_list: List['B']
+class AnnotatedUnion:
+    union_value: Union[str, Normal, List[str]]
+
+    def __init__(self, union_value):
+        self.union_value = union_value
+
+    def __eq__(self, other):
+        return isinstance(other, AnnotatedUnion) and \
+            self.union_value == other.union_value
+
+
+@dictable
+class AnnotatedListUnion:
+    value: List[Union[str, Normal, List[str]]]
+
+    def __init__(self, value):
+        self.value = value
+
+    def __eq__(self, other) -> bool:
+        return isinstance(other, AnnotatedListUnion) and \
+            self.value == other.value
+
+
+@dictable
+class AnnotatedRef:
+    b: 'NestDictable'
+    b_list: List['NestDictable']
 
     def __init__(self, b, b_list, count):
         self.b = b
@@ -151,7 +174,7 @@ class B5:
         self.count = count
 
     def __eq__(self, other):
-        return isinstance(other, B5) and \
+        return isinstance(other, AnnotatedRef) and \
             self.b == other.b and \
             self.b_list == other.b_list and \
             self.count == other.count
@@ -164,7 +187,7 @@ class Color(enum.Enum):
 
 
 @dictable
-class B6:
+class AnnotatedSpecialStd:
     path: pathlib.Path
     color: Color
 
@@ -173,163 +196,167 @@ class B6:
         self.color = color
 
     def __eq__(self, other):
-        return isinstance(other, B6) and \
+        return isinstance(other, AnnotatedSpecialStd) and \
             self.path == other.path and \
             self.color == other.color
 
 
 @dataclasses.dataclass
-class D:
+class NativeDataclass:
     str_value: str
-    int_values: List[int]
+    list_value: List[int]
+    union_value: Union[str, Normal, List[str]]
+    value: List[Union[str, Normal, List[str]]]
 
 
-good_case = namedtuple('GC', 'obj,dic,with_cls,strict,name')
+GoodCase = namedtuple('GoodCase', 'obj,dic,with_cls,strict,name')
 
-bad_case = namedtuple('BC', 'obj,dic,with_cls,strict,exc,raises,name')
+BadCase = namedtuple('BadCase', 'obj,dic,with_cls,strict,exc,raises,name')
 
 
-def generate_good_cases() -> List[good_case]:
+def generate_good_cases() -> List[GoodCase]:
     return [
-        good_case(
+        GoodCase(
             name='with embedded class info',
-            obj=A(str_value='limo', int_value=10),
-            dic={'str_value': 'limo', 'int_value': 10, '@': 'A', },
+            obj=Normal(str_value='limo', int_value=10),
+            dic={'str_value': 'limo', 'int_value': 10, '@': 'Normal', },
             with_cls=True,
             strict=True,
         ),
-        good_case(
+        GoodCase(
             name='without embedded class info',
-            obj=A(str_value='limo', int_value=10),
+            obj=Normal(str_value='limo', int_value=10),
             dic={'str_value': 'limo', 'int_value': 10, },
             with_cls=False,
             strict=True,
         ),
-        good_case(
+        GoodCase(
             name='with embedded class info but customized name',
-            obj=A1(str_value='limo', int_value=10),
+            obj=CustomName(str_value='limo', int_value=10),
             dic={'str_value': 'limo', 'int_value': 10, '@': 'SomeA', },
             with_cls=True,
             strict=True,
         ),
-        good_case(
+        GoodCase(
             name='allow un-dictable without embedding class info',
-            obj=A2(str_value='limo', int_value=10),
-            dic=A2(str_value='limo', int_value=10),
+            obj=Unregistered(str_value='limo', int_value=10),
+            dic=Unregistered(str_value='limo', int_value=10),
             with_cls=False,
             strict=False,
         ),
-        good_case(
+        GoodCase(
             name='allow un-dictable with embedded class info',
-            obj={'str_value': 'limo', 'int_value': 10, '@': 'A2'},
-            dic={'str_value': 'limo', 'int_value': 10, '@': 'A2'},
+            obj={'str_value': 'limo', 'int_value': 10, '@': 'Unregistered'},
+            dic={'str_value': 'limo', 'int_value': 10, '@': 'Unregistered'},
             with_cls=True,
             strict=False,
         ),
-        good_case(
+        GoodCase(
             name='when target is a dict itself',
             obj={'str_value': 'limo', 'int_value': 10},
             dic={'str_value': 'limo', 'int_value': 10},
             with_cls=True,
             strict=True,
         ),
-        good_case(
+        GoodCase(
             name='when has hidden fields while constructor has no arg',
-            obj=A3.create('limo', 20),
-            dic={
-                '_protected_value': 'limo',
-                '_A3__private_value': 20,
-                '@': 'A3'
-            },
+            obj=WithEmptyConstructor.create('limo', 20),
+            dic={'_protected_value': 'limo',
+                 '_WithEmptyConstructor__private_value': 20,
+                 '@': 'WithEmptyConstructor'},
             with_cls=True,
             strict=True,
         ),
-        good_case(
+        GoodCase(
             name='when has hidden fields while constructor has args',
-            obj=A4('limo', 20),
-            dic={
-                '_protected_value': 'limo',
-                '_A4__private_value': 20,
-                '@': 'A4'
-            },
+            obj=WithHiddenMember('limo', 20),
+            dic={'_protected_value': 'limo',
+                 '_WithHiddenMember__private_value': 20,
+                 '@': 'WithHiddenMember'},
             with_cls=True,
             strict=True,
         ),
-        good_case(
+        GoodCase(
             name='when has inherited hidden fields while constructor has args',
-            obj=A5('limo', 20),
-            dic={
-                '_protected_value': 'limo',
-                '_A4__private_value': 20,
-                '@': 'A5'
-            },
+            obj=WithInheritedHiddenMember('limo', 20),
+            dic={'_protected_value': 'limo',
+                 '_WithHiddenMember__private_value': 20,
+                 '@': 'WithInheritedHiddenMember'},
             with_cls=True,
             strict=True,
         ),
-        good_case(
+        GoodCase(
             name='nested dictable with class annotation',
-            obj=B(a=A(str_value='limo', int_value=10), count=20),
-            dic={
-                'a': {'str_value': 'limo', 'int_value': 10, '@': 'A'},
-                'count': 20,
-                '@': 'B'
-            },
+            obj=NestDictable(a=Normal(str_value='limo', int_value=10),
+                             count=20),
+            dic={'a': {'str_value': 'limo', 'int_value': 10, '@': 'Normal'},
+                 'count': 20,
+                 '@': 'NestDictable'},
             with_cls=True,
             strict=True,
         ),
-        good_case(
-            name='nested dictable with generic class annotation',
-            obj=B4(b_list=[B(a=A(str_value='limo', int_value=20), count=3)],
-                   count=4),
-            dic={'@': 'B4',
-                 'b_list': [{'@': 'B',
-                             'a': {'@': 'A', 'int_value': 20,
+        GoodCase(
+            name='nested dictable with generic list',
+            obj=AnnotatedList(b_list=[
+                NestDictable(a=Normal(str_value='limo', int_value=20),
+                             count=3)],
+                count=4),
+            dic={'@': 'AnnotatedList',
+                 'b_list': [{'@': 'NestDictable',
+                             'a': {'@': 'Normal', 'int_value': 20,
                                    'str_value': 'limo'},
                              'count': 3}],
                  'count': 4},
             with_cls=True,
             strict=False,
         ),
-        good_case(
+        GoodCase(
             name='nested dictable with class annotation string',
-            obj=B5(b=B(a=A(str_value='limo', int_value=10), count=2),
-                   b_list=[B(a=A(str_value='limo', int_value=20), count=3)],
-                   count=4),
-            dic={'@': 'B5',
-                 'b': {'@': 'B',
-                       'a': {'@': 'A', 'int_value': 10, 'str_value': 'limo'},
+            obj=AnnotatedRef(
+                b=NestDictable(a=Normal(str_value='limo', int_value=10),
+                               count=2),
+                b_list=[NestDictable(a=Normal(str_value='limo', int_value=20),
+                                     count=3)],
+                count=4),
+            dic={'@': 'AnnotatedRef',
+                 'b': {'@': 'NestDictable',
+                       'a': {'@': 'Normal', 'int_value': 10,
+                             'str_value': 'limo'},
                        'count': 2},
-                 'b_list': [{'@': 'B',
-                             'a': {'@': 'A', 'int_value': 20,
+                 'b_list': [{'@': 'NestDictable',
+                             'a': {'@': 'Normal', 'int_value': 20,
                                    'str_value': 'limo'},
                              'count': 3}],
                  'count': 4},
             with_cls=True,
             strict=False,
         ),
-        good_case(
+        GoodCase(
             name='allow dictable has a non-dictable field',
-            obj=B2(a=A2(str_value='limo', int_value=10), count=20),
+            obj=NestUnDictable(a=Unregistered(str_value='limo', int_value=10),
+                               count=20),
             dic={
-                'a': A2(str_value='limo', int_value=10),
+                'a': Unregistered(str_value='limo', int_value=10),
                 'count': 20,
-                '@': 'B2'
+                '@': 'NestUnDictable'
             },
             with_cls=True,
             strict=False,
         ),
-        good_case(
+        GoodCase(
             name='allow non-dictable has a dictable field',
-            obj=B3(a=A(str_value='limo', int_value=10), count=2),
-            dic=B3(a=A(str_value='limo', int_value=10), count=2),
+            obj=UnDictableNest(a=Normal(str_value='limo', int_value=10),
+                               count=2),
+            dic=UnDictableNest(a=Normal(str_value='limo', int_value=10),
+                               count=2),
             with_cls=True,
             strict=False,
         ),
-        good_case(
+        GoodCase(
             name='nested dictable with special std types',
-            obj=B6(path=pathlib.Path('/home/limo/.bashrc'),
-                   color=Color.Red),
-            dic={'@': 'B6',
+            obj=AnnotatedSpecialStd(path=pathlib.Path('/home/limo/.bashrc'),
+                                    color=Color.Red),
+            dic={'@': 'AnnotatedSpecialStd',
                  'path': '/home/limo/.bashrc',
                  'color': {
                      '@': 'Color',
@@ -339,11 +366,21 @@ def generate_good_cases() -> List[good_case]:
             with_cls=True,
             strict=False,
         ),
-        good_case(
+        GoodCase(
             name='native support to dataclasses',
-            obj=D(str_value='limo', int_values=[10, 20]),
+            obj=NativeDataclass(str_value='limo', list_value=[10, 20],
+                                union_value=['hello'],
+                                value=['world',
+                                       Normal(str_value='limo',
+                                              int_value=10),
+                                       ['hi', 'world']]),
             dic={'str_value': 'limo',
-                 'int_values': [10, 20]},
+                 'list_value': [10, 20],
+                 'union_value': ['hello'],
+                 'value': ['world',
+                           {'str_value': 'limo',
+                            'int_value': 10},
+                           ['hi', 'world']]},
             with_cls=False,
             strict=True,
         ),
@@ -352,100 +389,103 @@ def generate_good_cases() -> List[good_case]:
 
 def generate_bad_cases():
     return [
-        bad_case(
+        BadCase(
             name='unable to_dict in strict mode',
-            obj=A2(str_value='limo', int_value=10),
+            obj=Unregistered(str_value='limo', int_value=10),
             dic=None,
             with_cls=True,
             strict=True,
             exc=UnableToDict,
-            raises=dict(match='.*A2.*'),
+            raises=dict(match='.*Unregistered.*'),
         ),
-        bad_case(
+        BadCase(
             name='unable from_dict in strict mode without embedded class info',
             obj=None,
             dic={'str_value': 'limo', 'int_value': 10},
-            with_cls=A2,
+            with_cls=Unregistered,
             strict=True,
             exc=UnableFromDict,
-            raises=dict(match='.*A2.*'),
+            raises=dict(match='.*Unregistered.*'),
         ),
-        bad_case(
+        BadCase(
             name='unable from_dict in strict mode with embedded class info',
             obj=None,
-            dic={'str_value': 'limo', 'int_value': 10, '@': 'A2'},
+            dic={'str_value': 'limo', 'int_value': 10, '@': 'Unregistered'},
             with_cls=None,
             strict=True,
             exc=UnableFromDict,
-            raises=dict(match='.*A2.*'),
+            raises=dict(match='.*Unregistered.*'),
         ),
-        bad_case(
+        BadCase(
             name='panic if nested un-dictable when to_dict(.., strict)',
-            obj=B2(A2(str_value='limo', int_value=10), count=20),
+            obj=NestUnDictable(Unregistered(str_value='limo', int_value=10),
+                               count=20),
             dic=None,
             with_cls=True,
             strict=True,
             exc=UnableToDict,
-            raises=dict(match='.*A2.*'),
+            raises=dict(match='.*Unregistered.*'),
         ),
-        bad_case(
+        BadCase(
             name='panic if nested un-dictable when from_dict(.., strict, cls)',
             obj=None,
             dic={
                 'a': {'str_value': 'limo', 'int_value': 10},
                 'count': 10,
             },
-            with_cls=B2,
+            with_cls=NestUnDictable,
             strict=True,
             exc=UnableFromDict,
-            raises=dict(match='.*A2.*'),
+            raises=dict(match='.*Unregistered.*'),
         ),
-        bad_case(
+        BadCase(
             name='panic if nested un-dictable when from_dict(.., strict)',
             obj=None,
             dic={
-                'a': {'str_value': 'limo', 'int_value': 10, '@': 'A2'},
+                'a': {'str_value': 'limo', 'int_value': 10,
+                      '@': 'Unregistered'},
                 'count': 10,
-                '@': 'B2'
+                '@': 'NestUnDictable'
             },
             with_cls=None,
             strict=True,
             exc=UnableFromDict,
-            raises=dict(match='.*A2.*'),
+            raises=dict(match='.*Unregistered.*'),
         ),
-        bad_case(
+        BadCase(
             name='panic if wrapped un-dictable when to_dict(.., strict)',
-            obj=B3(A(str_value='limo', int_value=10), count=20),
+            obj=UnDictableNest(Normal(str_value='limo', int_value=10),
+                               count=20),
             dic=None,
             with_cls=True,
             strict=True,
             exc=UnableToDict,
-            raises=dict(match='.*B3.*'),
+            raises=dict(match='.*UnDictableNest.*'),
         ),
-        bad_case(
+        BadCase(
             name='panic if wrapped un-dictable when from_dict(.., strict, cls)',
             obj=None,
             dic={
                 'a': {'str_value': 'limo', 'int_value': 10},
                 'count': 10,
             },
-            with_cls=B3,
+            with_cls=UnDictableNest,
             strict=True,
             exc=UnableFromDict,
-            raises=dict(match='.*B3.*'),
+            raises=dict(match='.*UnDictableNest.*'),
         ),
-        bad_case(
+        BadCase(
             name='panic if wrapped un-dictable when from_dict(.., strict)',
             obj=None,
             dic={
-                'a': {'str_value': 'limo', 'int_value': 10, '@': 'A'},
+                'a': {'str_value': 'limo', 'int_value': 10, '@': 'Normal'},
                 'count': 10,
-                '@': 'B3'
+                '@': 'UnDictableNest'
             },
             with_cls=None,
             strict=True,
             exc=UnableFromDict,
-            raises=dict(match='.*B3.*'),
+            raises=dict(match='.*UnDictableNest.*'),
         ),
     ]
 
@@ -456,18 +496,18 @@ def case_name(case):
 
 class TestAnnotate:
     @pytest.mark.parametrize('case', generate_good_cases(), ids=case_name)
-    def test_to_dict(self, case: good_case):
+    def test_to_dict(self, case: GoodCase):
         assert AutoDict.to_dict(case.obj, with_cls=case.with_cls,
                                 strict=case.strict) == case.dic
 
     @pytest.mark.parametrize('case', generate_good_cases(), ids=case_name)
-    def test_from_dict(self, case: good_case):
+    def test_from_dict(self, case: GoodCase):
         cls = None if case.with_cls else type(case.obj)
         output_obj = AutoDict.from_dict(case.dic, cls=cls, strict=case.strict)
         assert output_obj == case.obj
 
     @pytest.mark.parametrize('case', generate_bad_cases(), ids=case_name)
-    def test_failed_to_or_from_dict(self, case: bad_case):
+    def test_failed_to_or_from_dict(self, case: BadCase):
         with pytest.raises(case.exc, **case.raises):
             if case.dic is None:
                 AutoDict.to_dict(case.obj, case.with_cls, strict=case.strict)
@@ -475,123 +515,125 @@ class TestAnnotate:
                 AutoDict.from_dict(case.dic, case.with_cls, strict=case.strict)
 
     @to_dictable
-    class F:
+    class PartialTo:
         def __init__(self, str_value, int_value):
             self.str_value = str_value
             self.int_value = int_value
 
     def test_to_dictable_to_dict(self):
-        f = TestAnnotate.F(str_value='limo', int_value=10)
+        f = TestAnnotate.PartialTo(str_value='limo', int_value=10)
         dict_f = AutoDict.to_dict(f)
 
-        assert dict_f == {'str_value': 'limo', 'int_value': 10, '@': 'F'}
+        assert dict_f == {'str_value': 'limo', 'int_value': 10,
+                          '@': 'PartialTo'}
 
     def test_to_dictable_from_dict(self):
-        dict_f = {'str_value': 'limo', 'int_value': 10, '@': 'F'}
+        dict_f = {'str_value': 'limo', 'int_value': 10, '@': 'PartialTo'}
 
-        with pytest.raises(UnableFromDict, match='.*F.*'):
+        with pytest.raises(UnableFromDict, match='.*PartialTo.*'):
             AutoDict.from_dict(dict_f)
 
     @from_dictable
-    class G:
+    class PartialFrom:
         def __init__(self, str_value, int_value):
             self.str_value = str_value
             self.int_value = int_value
 
         def __eq__(self, other):
-            return isinstance(other, TestAnnotate.G) and \
+            return isinstance(other, TestAnnotate.PartialFrom) and \
                 self.str_value == other.str_value and \
                 self.int_value == other.int_value
 
     def test_from_dictable_from_dict(self):
-        dict_g = {'str_value': 'limo', 'int_value': 10, '@': 'G'}
+        dict_g = {'str_value': 'limo', 'int_value': 10, '@': 'PartialFrom'}
 
-        g = AutoDict.from_dict(dict_g, TestAnnotate.G)
-        assert g == TestAnnotate.G(str_value='limo', int_value=10)
+        g = AutoDict.from_dict(dict_g, TestAnnotate.PartialFrom)
+        assert g == TestAnnotate.PartialFrom(str_value='limo', int_value=10)
 
     def test_from_dictable_to_dict(self):
-        g = TestAnnotate.G(str_value='limo', int_value=10)
+        g = TestAnnotate.PartialFrom(str_value='limo', int_value=10)
 
-        with pytest.raises(UnableToDict, match='.*G.*'):
+        with pytest.raises(UnableToDict, match='.*PartialFrom.*'):
             AutoDict.to_dict(g)
 
     @to_dictable
     @from_dictable
-    class H:
+    class PartialBoth:
         def __init__(self, str_value, int_value):
             self.str_value = str_value
             self.int_value = int_value
 
         def __eq__(self, other):
-            return isinstance(other, TestAnnotate.H) and \
+            return isinstance(other, TestAnnotate.PartialBoth) and \
                 self.str_value == other.str_value and \
                 self.int_value == other.int_value
 
     def test_to_from_dictable(self):
-        h = TestAnnotate.H(str_value='limo', int_value=10)
+        h = TestAnnotate.PartialBoth(str_value='limo', int_value=10)
         dict_h = AutoDict.to_dict(h)
 
-        assert dict_h == {'str_value': 'limo', 'int_value': 10, '@': 'H'}
+        assert dict_h == {'str_value': 'limo', 'int_value': 10,
+                          '@': 'PartialBoth'}
         output_h = AutoDict.from_dict(dict_h)
         assert h == output_h
 
 
 class TestDerive:
-    class F(Dictable):
+    class General(Dictable):
         def __init__(self, str_value, int_value):
             self.str_value = str_value
             self.int_value = int_value
 
         def __eq__(self, other):
-            return isinstance(other, TestDerive.F) and \
+            return isinstance(other, TestDerive.General) and \
                 self.str_value == other.str_value and \
                 self.int_value == other.int_value
 
     def test_derive_without_overwritten(self):
-        f = TestDerive.F(str_value='limo', int_value=10)
+        f = TestDerive.General(str_value='limo', int_value=10)
 
         dict_f = AutoDict.to_dict(f)
         assert dict_f == {
-            'str_value': 'limo', 'int_value': 10, '@': 'F'
+            'str_value': 'limo', 'int_value': 10, '@': 'General'
         }
 
-        output_f = AutoDict.from_dict(dict_f, TestDerive.F)
+        output_f = AutoDict.from_dict(dict_f, TestDerive.General)
         assert f == output_f
 
-    class F1(Dictable, name='SomeF'):
+    class CustomName(Dictable, name='SomeF'):
         def __init__(self, str_value, int_value):
             self.str_value = str_value
             self.int_value = int_value
 
         def __eq__(self, other):
-            return isinstance(other, TestDerive.F) and \
+            return isinstance(other, TestDerive.General) and \
                 self.str_value == other.str_value and \
                 self.int_value == other.int_value
 
     def test_derive_without_overwritten_but_customized_name(self):
-        f = TestDerive.F1(str_value='limo', int_value=10)
+        f = TestDerive.CustomName(str_value='limo', int_value=10)
 
         dict_f = AutoDict.to_dict(f)
         assert dict_f == {
             'str_value': 'limo', 'int_value': 10, '@': 'SomeF'
         }
 
-        output_f = AutoDict.from_dict(dict_f, TestDerive.F)
+        output_f = AutoDict.from_dict(dict_f, TestDerive.General)
         assert f == output_f
 
-    class G(Dictable):
+    class OverrideBoth(Dictable):
         def __init__(self):
             self.str_value = ''
             self.int_value = 0
 
         def __eq__(self, other):
-            return isinstance(other, TestDerive.G) and \
+            return isinstance(other, TestDerive.OverrideBoth) and \
                 self.str_value == other.str_value and \
                 self.int_value == other.int_value
 
         @classmethod
-        def _from_dict(cls, dic: dict) -> 'TestDerive.G':
-            g = TestDerive.G()
+        def _from_dict(cls, dic: dict) -> 'TestDerive.OverrideBoth':
+            g = TestDerive.OverrideBoth()
             g.str_value = dic['str_value']
             g.int_value = dic['int_value']
             return g
@@ -603,23 +645,23 @@ class TestDerive:
             }
 
     def test_derive_with_overwritten(self):
-        g = TestDerive.G()
+        g = TestDerive.OverrideBoth()
         g.str_value = 'limo'
         g.int_value = 10
 
         dict_g = AutoDict.to_dict(g)
         assert dict_g == {
-            'str_value': 'limo', 'int_value': 10, '@': 'G'
+            'str_value': 'limo', 'int_value': 10, '@': 'OverrideBoth'
         }
 
-        output_g = AutoDict.from_dict(dict_g, TestDerive.G)
+        output_g = AutoDict.from_dict(dict_g, TestDerive.OverrideBoth)
         assert g == output_g
 
-    class H(Dictable):
-        g: 'TestDerive.G'
+    class NestedOverride(Dictable):
+        g: 'TestDerive.OverrideBoth'
 
         def __init__(self):
-            self.g = TestDerive.G()
+            self.g = TestDerive.OverrideBoth()
             self.count = 0
 
         def __eq__(self, other):
@@ -627,8 +669,8 @@ class TestDerive:
                 self.count == other.count
 
         @classmethod
-        def _from_dict(cls, dic: dict) -> 'TestDerive.H':
-            h = TestDerive.H()
+        def _from_dict(cls, dic: dict) -> 'TestDerive.NestedOverride':
+            h = TestDerive.NestedOverride()
             h.g = dic['g']
             h.count = dic['count']
             return h
@@ -640,18 +682,18 @@ class TestDerive:
             }
 
     def test_nested_derive_with_overwritten(self):
-        h = TestDerive.H()
-        h.g = TestDerive.G()
+        h = TestDerive.NestedOverride()
+        h.g = TestDerive.OverrideBoth()
         h.g.str_value = 'limo'
         h.g.int_value = 10
         h.count = 20
 
         dict_h = AutoDict.to_dict(h)
         assert dict_h == {
-            'g': {'str_value': 'limo', 'int_value': 10, '@': 'G'},
+            'g': {'str_value': 'limo', 'int_value': 10, '@': 'OverrideBoth'},
             'count': 20,
-            '@': 'H'
+            '@': 'NestedOverride'
         }
 
-        output_h = AutoDict.from_dict(dict_h, TestDerive.H)
+        output_h = AutoDict.from_dict(dict_h, TestDerive.NestedOverride)
         assert h == output_h
