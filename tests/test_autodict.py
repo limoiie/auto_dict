@@ -205,8 +205,6 @@ class AnnotatedSpecialStd:
 class NativeDataclass:
     str_value: str
     list_value: List[int]
-    union_value: Union[str, Normal, List[str]]
-    value: List[Union[str, Normal, List[str]]]
 
 
 GoodCase = namedtuple('GoodCase', 'obj,dic,with_cls,strict,name')
@@ -311,6 +309,40 @@ def generate_good_cases() -> List[GoodCase]:
             strict=False,
         ),
         GoodCase(
+            name='nested dictable with generic union - 1',
+            obj=AnnotatedUnion(union_value='string value'),
+            dic={'union_value': 'string value'},
+            with_cls=False,
+            strict=False,
+        ),
+        GoodCase(
+            name='nested dictable with generic union - 2',
+            obj=AnnotatedUnion(union_value=Normal(str_value='o', int_value=0)),
+            dic={'union_value': {'str_value': 'o',
+                                 'int_value': 0}},
+            with_cls=False,
+            strict=False,
+        ),
+        GoodCase(
+            name='nested dictable with generic union - 3',
+            obj=AnnotatedUnion(union_value=['string', 'value']),
+            dic={'union_value': ['string', 'value']},
+            with_cls=False,
+            strict=False,
+        ),
+        GoodCase(
+            name='nested dictable with generic list union',
+            obj=AnnotatedListUnion(
+                value=['string', Normal(str_value='o', int_value=0),
+                       ['string', 'value']]),
+            dic={'value': ['string',
+                           {'str_value': 'o',
+                            'int_value': 0},
+                           ['string', 'value']]},
+            with_cls=False,
+            strict=False,
+        ),
+        GoodCase(
             name='nested dictable with class annotation string',
             obj=AnnotatedRef(
                 b=NestDictable(a=Normal(str_value='limo', int_value=10),
@@ -368,19 +400,9 @@ def generate_good_cases() -> List[GoodCase]:
         ),
         GoodCase(
             name='native support to dataclasses',
-            obj=NativeDataclass(str_value='limo', list_value=[10, 20],
-                                union_value=['hello'],
-                                value=['world',
-                                       Normal(str_value='limo',
-                                              int_value=10),
-                                       ['hi', 'world']]),
+            obj=NativeDataclass(str_value='limo', list_value=[10, 20]),
             dic={'str_value': 'limo',
-                 'list_value': [10, 20],
-                 'union_value': ['hello'],
-                 'value': ['world',
-                           {'str_value': 'limo',
-                            'int_value': 10},
-                           ['hi', 'world']]},
+                 'list_value': [10, 20]},
             with_cls=False,
             strict=True,
         ),
