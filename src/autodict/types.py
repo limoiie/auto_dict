@@ -25,13 +25,25 @@ def is_generic(cls: type):
 def is_generic_collection(cls: type):
     if is_generic(cls):
         origin = inspect_generic_origin(cls)
-        return origin is not None and issubclass(origin, Collection)
+        try:
+            return origin is not None and issubclass(origin, Collection)
+        except TypeError:
+            pass
 
     return False
 
 
 def is_generic_union(cls):
     return is_generic(cls) and cls.__origin__ is Union
+
+
+def is_generic_literal(cls):
+    try:
+        from typing import Literal
+
+        return is_generic(cls) and cls.__origin__ is Literal
+    except ModuleNotFoundError:
+        return False
 
 
 def is_namedtuple(cls):
@@ -87,8 +99,7 @@ def inspect_generic_templ_args(cls: type, defaults=()):
 
 
 def inspect_generic_origin(cls: type):
-    return getattr(cls, '__extra__', None) or getattr(cls, '__origin__')
-
+    return getattr(cls, '__extra__', None) or getattr(cls, '__origin__', None)
 
 # def _resolve_cls(cls_ref: type or str or ForwardRef, ctx_module: str = None):
 #     """

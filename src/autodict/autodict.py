@@ -2,8 +2,7 @@ import dataclasses
 import enum
 import inspect
 # noinspection PyUnresolvedReferences,PyProtectedMember
-from typing import Any, Callable, ForwardRef, List, Literal, Mapping, Optional, \
-    Tuple, \
+from typing import Any, Callable, ForwardRef, List, Mapping, Optional, Tuple, \
     Type, TypeVar, Union, _GenericAlias, get_type_hints
 
 from registry import Registry
@@ -11,13 +10,11 @@ from registry import Registry
 from autodict.errors import UnableFromDict, UnableToDict
 from autodict.mapping_factory import mapping_builder
 from autodict.predefined import dataclass_from_dict, dataclass_to_dict, \
-    default_from_dict, \
-    default_to_dict, \
-    enum_from_dict, enum_to_dict, unable_from_dict, unable_to_dict
+    default_from_dict, default_to_dict, enum_from_dict, enum_to_dict, \
+    unable_from_dict, unable_to_dict
 from autodict.types import T, has_annotations, inspect_generic_origin, \
-    inspect_generic_templ_args, \
-    is_builtin, is_generic, is_generic_collection, is_generic_union, \
-    stable_map
+    inspect_generic_templ_args, is_builtin, is_generic, is_generic_collection, \
+    is_generic_literal, is_generic_union, stable_map
 
 
 @dataclasses.dataclass
@@ -227,7 +224,8 @@ class AutoDict(Registry[Meta]):
           from_dictable.
         """
         embedded_cls = AutoDict._extract_class(dic, strict)
-        cls = embedded_cls or cls if is_generic_union(cls) else cls or embedded_cls
+        cls = embedded_cls or cls if is_generic_union(cls) else \
+            cls or embedded_cls
 
         if recursively:
             def rec(item_dic, item_cls):
@@ -278,10 +276,10 @@ def _items_from_dict(dic, cls, fn_transform):
     if has_annotations(cls):
         return _items_from_dict_annotated_class(dic, cls, fn_transform)
 
-    if is_generic_collection(cls):
+    if is_generic_collection(cls):  # List, Set, Dict, Tuple, Mapping, etc
         return _items_from_dict_generic_collection(dic, cls, fn_transform)
 
-    if is_generic(cls):  # is instance of _GenericAlias
+    if is_generic(cls):  # Union including Optional,
         return _items_from_dict_generic_non_collection(dic, cls, fn_transform)
 
     return stable_map(dic, lambda v, _: fn_transform(v, None))
@@ -292,37 +290,55 @@ def _items_from_dict_annotated_class(dic, cls, fn_transform):
     return stable_map(dic, lambda v, k: fn_transform(v, annotations.get(k)))
 
 
-def _items_from_dict_generic_non_collection(obj, cls, fn_transform):
-    # todo: handle union and literals
-    if cls.__origin__ is Union:
-        pass
+def _items_from_dict_generic_non_collection(dic, cls, fn_transform):
+    if is_generic_union(cls):
+        cand_classes = inspect_generic_templ_args(cls, defaults=(Any,))
+        cand_objects = dict()
+        for cand_cls in cand_classes:
+            # builtin-as dict should be an instance of the original builtin
+            cand_orig_cls = inspect_generic_origin(cand_cls) or cand_cls
+            if is_builtin(cand_orig_cls) and not isinstance(dic, cand_orig_cls):
+                continue
 
-    if cls.__origin__ is Literal:
-        assert obj in cls.__args__
-        return obj
+            # noinspection PyBroadException
+            try:
+                obj = fn_transform(dic, cand_cls)
+                cand_objects[cand_cls] = obj
+            except Exception:
+                continue
 
-    return obj
+        if len(cand_objects) > 1:
+            raise ValueError(f'Multiple union type matched: {cand_objects}')
+
+        return cand_objects.popitem()[-1]
+
+    if is_generic_literal(cls):
+        cand_literals = inspect_generic_templ_args(cls)
+        return dic in cand_literals
+
+    return dic
 
 
-def _items_from_dict_generic_collection(obj, cls, fn_transform):
+def _items_from_dict_generic_collection(dic, cls, fn_transform):
     # infer item type from template args of typing._GenericAlias
     data_cls = inspect_generic_origin(cls)
+    assert issubclass(data_cls, type(dic))
 
     if issubclass(data_cls, Mapping):
         key_cls, val_cls = inspect_generic_templ_args(cls, defaults=(Any, Any))
         data_cls = mapping_builder(data_cls)
         return data_cls((fn_transform(key, key_cls), fn_transform(val, val_cls))
-                        for key, val in obj.items())
+                        for key, val in dic.items())
 
     if issubclass(data_cls, tuple):
         item_classes = inspect_generic_templ_args(cls, defaults=(Any, ...))
         if len(item_classes) == 2 and item_classes[-1] is ...:
-            item_classes = (item_classes[0],) * len(obj)
+            item_classes = (item_classes[0],) * len(dic)
         return data_cls(fn_transform(item, item_cls) for item, item_cls in
-                        zip(obj, item_classes))
+                        zip(dic, item_classes))
 
     if issubclass(data_cls, (list, set, frozenset)):
         item_cls, = inspect_generic_templ_args(cls, defaults=(Any,))
-        return data_cls(fn_transform(item, item_cls) for item in obj)
+        return data_cls(fn_transform(item, item_cls) for item in dic)
 
     raise ValueError(f'Unhandled generic collection type: {data_cls}')
