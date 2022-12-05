@@ -69,6 +69,32 @@ class WithEmptyConstructor:
 
 
 @dictable
+class WithComplexConstructor:
+    def __init__(self, a, /, b, c=10, *d, e, f=20, **g):
+        self.a, self.b, self.c, self.d, self.e, self.f, self.g = \
+            a, b, c, d, e, f, g
+
+    def __eq__(self, other):
+        return isinstance(other, WithComplexConstructor) and \
+               self.a, self.b, self.c, self.d, self.e, self.f, self.g == \
+               other.a, other.b, other.c, other.d, other.e, other.f, other.g
+
+
+@dictable
+class WithIncompleteConstructor:
+    def __init__(self, int_value1, int_value2):
+        self.int_value1 = int_value1
+        self.int_value2 = int_value2
+        self.int_value3 = int_value1 + int_value2
+
+    def __eq__(self, other):
+        return isinstance(other, WithIncompleteConstructor) and \
+            self.int_value1 == other.int_value1 and \
+            self.int_value2 == other.int_value2 and \
+            self.int_value3 == other.int_value3
+
+
+@dictable
 class WithHiddenMember:
     def __init__(self, protected_value, private_value):
         self._protected_value = protected_value
@@ -287,6 +313,21 @@ def generate_good_cases() -> List[GoodCase]:
             ins={'str_value': 'limo', 'int_value': 10},
             obj={'str_value': 'limo', 'int_value': 10},
             with_cls=True,
+            strict=True,
+        ),
+        GoodCase(
+            name='when has incomplete constructor',
+            ins=WithIncompleteConstructor(int_value1=1, int_value2=2),
+            obj={'int_value1': 1, 'int_value2': 2, 'int_value3': 3},
+            with_cls=False,
+            strict=True,
+        ),
+        GoodCase(
+            name='when has complex constructor',
+            ins=WithComplexConstructor(1, 2, 3, 4, 5, e=6, f=7, g=8, h=9, i=0),
+            obj={'a': 1, 'b': 2, 'c': 3, 'd': (4, 5), 'e': 6, 'f': 7,
+                 'g': {'g': 8, 'h': 9, 'i': 0}},
+            with_cls=False,
             strict=True,
         ),
         GoodCase(
