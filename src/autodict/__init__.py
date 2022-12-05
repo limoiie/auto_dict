@@ -1,8 +1,19 @@
+__all__ = ['dictable', 'to_dictable', 'from_dictable', 'AutoDict', 'Dictable']
+
+try:
+    import importlib.metadata as _importlib_metadata
+except ModuleNotFoundError:
+    # noinspection PyUnresolvedReferences
+    import importlib_metadata as _importlib_metadata
+
+try:
+    __version__ = _importlib_metadata.version("autodict")
+except _importlib_metadata.PackageNotFoundError:
+    __version__ = "unknown version"
+
 import pathlib as _plib
 
-from .autodict import dictable, to_dictable, from_dictable, AutoDict, Dictable
-
-__all__ = ['dictable', 'to_dictable', 'from_dictable', 'AutoDict', 'Dictable']
+from .autodict import AutoDict, Dictable, dictable, from_dictable, to_dictable
 
 
 def _path_to_dict(path: _plib.Path):
