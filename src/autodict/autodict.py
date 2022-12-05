@@ -342,7 +342,6 @@ def _items_from_dict_generic_non_collection(obj: O, cls: type, fn_transform):
 def _items_from_dict_generic_collection(obj: O, cls: type, fn_transform):
     # infer item type from template args of typing._GenericAlias
     data_cls = inspect_generic_origin(cls)
-    assert issubclass(data_cls, type(obj))
 
     if issubclass(data_cls, Mapping):
         key_cls, val_cls = inspect_generic_templ_args(cls, defaults=(Any, Any))
