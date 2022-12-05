@@ -2,7 +2,7 @@ import dataclasses
 import enum
 import pathlib
 from collections import namedtuple
-from typing import List, Union
+from typing import List, Tuple, Union
 
 import pytest
 
@@ -164,6 +164,18 @@ class AnnotatedList:
         return isinstance(other, AnnotatedList) and \
             self.b_list == other.b_list and \
             self.count == other.count
+
+
+@dictable
+class AnnotatedTuple:
+    value: Tuple[int, str]
+
+    def __init__(self, value):
+        self.value = value
+
+    def __eq__(self, other):
+        return isinstance(other, AnnotatedTuple) and \
+            self.value == other.value
 
 
 @dictable
@@ -388,6 +400,13 @@ def generate_good_cases() -> List[GoodCase]:
                  'count': 4},
             with_cls=True,
             strict=False,
+        ),
+        GoodCase(
+            name='nested dictable with tuple',
+            ins=AnnotatedTuple(value=(1, 'limo')),
+            obj={'@': 'AnnotatedTuple', 'value': (1, 'limo')},
+            with_cls=True,
+            strict=True,
         ),
         GoodCase(
             name='nested dictable with generic union - 1',
