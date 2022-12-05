@@ -9,6 +9,7 @@ import pytest
 from autodict import AutoDict, dictable
 from autodict.autodict import Dictable, from_dictable, to_dictable
 from autodict.errors import UnableFromDict, UnableToDict
+from conftest import support_literals, support_positional_only
 
 
 @dictable
@@ -68,16 +69,28 @@ class WithEmptyConstructor:
             self.__private_value == other.__private_value
 
 
-@dictable
-class WithComplexConstructor:
-    def __init__(self, a, /, b, c=10, *d, e, f=20, **g):
-        self.a, self.b, self.c, self.d, self.e, self.f, self.g = \
-            a, b, c, d, e, f, g
+if support_positional_only():
+    @dictable
+    class WithComplexConstructor:
+        def __init__(self, a, /, b, c=10, *d, e, f=20, **g):
+            self.a, self.b, self.c, self.d, self.e, self.f, self.g = \
+                a, b, c, d, e, f, g
 
-    def __eq__(self, other):
-        return isinstance(other, WithComplexConstructor) and \
-               self.a, self.b, self.c, self.d, self.e, self.f, self.g == \
-               other.a, other.b, other.c, other.d, other.e, other.f, other.g
+        def __eq__(self, other):
+            return isinstance(other, WithComplexConstructor) and \
+                   self.a, self.b, self.c, self.d, self.e, self.f, self.g == \
+                   other.a, other.b, other.c, other.d, other.e, other.f, other.g
+else:
+    @dictable
+    class WithComplexConstructor:
+        def __init__(self, a, b, c=10, *d, e, f=20, **g):
+            self.a, self.b, self.c, self.d, self.e, self.f, self.g = \
+                a, b, c, d, e, f, g
+
+        def __eq__(self, other):
+            return isinstance(other, WithComplexConstructor) and \
+                   self.a, self.b, self.c, self.d, self.e, self.f, self.g == \
+                   other.a, other.b, other.c, other.d, other.e, other.f, other.g
 
 
 @dictable
@@ -189,26 +202,32 @@ class AnnotatedListUnion:
             self.value == other.value
 
 
-try:
+if support_literals():
     from typing import Literal
 
-    Literals = Literal['w+', 'r+']
 
-except ImportError:
-    Literal = str
-    Literals = Literal
+    @dictable
+    class AnnotatedLiteral:
+        value: Literal['w+', 'r+']
 
+        def __init__(self, value):
+            self.value = value
 
-@dictable
-class AnnotatedLiteral:
-    value: Literals
+        def __eq__(self, other):
+            return isinstance(other, AnnotatedLiteral) and \
+                self.value == other.value
 
-    def __init__(self, value):
-        self.value = value
+else:
+    @dictable
+    class AnnotatedLiteral:
+        value: str
 
-    def __eq__(self, other):
-        return isinstance(other, AnnotatedLiteral) and \
-            self.value == other.value
+        def __init__(self, value):
+            self.value = value
+
+        def __eq__(self, other):
+            return isinstance(other, AnnotatedLiteral) and \
+                self.value == other.value
 
 
 @dictable
