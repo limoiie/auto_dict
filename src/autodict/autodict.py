@@ -1,6 +1,7 @@
 import dataclasses
 import enum
 import inspect
+from dataclasses import is_dataclass
 # noinspection PyUnresolvedReferences,PyProtectedMember
 from typing import Any, Callable, ForwardRef, List, Mapping, Optional, Tuple, \
     Type, TypeVar, Union, _GenericAlias, get_type_hints
@@ -12,9 +13,9 @@ from autodict.mapping_factory import mapping_builder
 from autodict.predefined import dataclass_from_dict, dataclass_to_dict, \
     default_from_dict, default_to_dict, enum_from_dict, enum_to_dict, \
     unable_from_dict, unable_to_dict
-from autodict.types import T, has_annotations, inspect_generic_origin, \
-    inspect_generic_templ_args, is_builtin, is_generic, is_generic_collection, \
-    is_generic_literal, is_generic_union, stable_map
+from autodict.types import T, inspect_generic_origin, \
+    inspect_generic_templ_args, is_annotated_class, is_builtin, is_generic, \
+    is_generic_collection, is_generic_literal, is_generic_union, stable_map
 
 
 @dataclasses.dataclass
@@ -273,7 +274,10 @@ def _items_to_dict(obj, fn_transform):
 
 
 def _items_from_dict(dic, cls, fn_transform):
-    if has_annotations(cls):
+    if is_dataclass(cls):
+        return _items_from_dict_dataclass(dic, cls, fn_transform)
+
+    if is_annotated_class(cls):
         return _items_from_dict_annotated_class(dic, cls, fn_transform)
 
     if is_generic_collection(cls):  # List, Set, Dict, Tuple, Mapping, etc
@@ -285,9 +289,27 @@ def _items_from_dict(dic, cls, fn_transform):
     return stable_map(dic, lambda v, _: fn_transform(v, None))
 
 
+def _items_from_dict_dataclass(dic, cls, fn_transform):
+    annotations = get_type_hints(cls)
+
+    def transform_field(field_dic, field_name):
+        field_cls = annotations.get(field_name)
+        if inspect.isclass(field_cls) and \
+                issubclass(field_cls, dataclasses.InitVar):
+            field_cls = field_cls.type
+
+        return fn_transform(field_dic, field_cls)
+
+    return stable_map(dic, transform_field)
+
+
 def _items_from_dict_annotated_class(dic, cls, fn_transform):
     annotations = get_type_hints(cls)
-    return stable_map(dic, lambda v, k: fn_transform(v, annotations.get(k)))
+
+    def transform_field(field_dic, field_name):
+        return fn_transform(field_dic, annotations.get(field_name))
+
+    return stable_map(dic, transform_field)
 
 
 def _items_from_dict_generic_non_collection(dic, cls, fn_transform):

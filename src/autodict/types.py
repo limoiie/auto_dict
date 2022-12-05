@@ -14,7 +14,7 @@ def is_collection(cls: type):
     return issubclass(cls, (list, set, tuple, Mapping))
 
 
-def has_annotations(cls: type):
+def is_annotated_class(cls: type):
     return hasattr(cls, '__annotations__')
 
 
@@ -35,6 +35,11 @@ def is_generic_collection(cls: type):
 
 def is_generic_union(cls):
     return is_generic(cls) and cls.__origin__ is Union
+
+
+def is_generic_optional(cls):
+    return is_generic_union(cls) and \
+        type(None) in inspect_generic_templ_args(cls)
 
 
 def is_generic_literal(cls):

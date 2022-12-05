@@ -3,6 +3,7 @@ import dataclasses
 import enum
 from typing import Type
 
+import autodict.dataclasses as dataclasses_ext
 from autodict.errors import UnableFromDict, UnableToDict
 from autodict.types import T, strip_hidden_member_prefix
 
@@ -44,7 +45,19 @@ def dataclass_to_dict(obj) -> dict:
 
 
 def dataclass_from_dict(cls: Type[T], dic: dict) -> T:
-    return cls(**dic)
+    init_values = {}
+    post_init_values = {}
+
+    for field in dataclasses_ext.instance_fields(cls):
+        field_value = dic[field.name] if field.name in dic else \
+            dataclasses_ext.default_value(field)
+
+        if field.init:
+            init_values[field.name] = field_value
+        else:
+            post_init_values[field.name] = field_value
+
+    return dataclasses_ext.instantiate(cls, init_values, post_init_values)
 
 
 def unable_to_dict(obj) -> dict:

@@ -229,6 +229,17 @@ class NativeDataclass:
     list_value: List[int]
 
 
+@dataclasses.dataclass
+class DataclassWithField:
+    init_value: str
+    init_variable: dataclasses.InitVar[int] = 0
+    post_init_value: int = dataclasses.field(init=False)
+    default_value: int = dataclasses.field(default=10)
+
+    def __post_init__(self, init_variable):
+        self.post_init_value = self.default_value + init_variable
+
+
 GoodCase = namedtuple('GoodCase', 'obj,dic,with_cls,strict,name')
 
 BadCase = namedtuple('BadCase', 'obj,dic,with_cls,strict,exc,raises,name')
@@ -428,13 +439,21 @@ def generate_good_cases() -> List[GoodCase]:
             strict=False,
         ),
         GoodCase(
-            name='native support to dataclasses',
+            name='native support to dataclass',
             obj=NativeDataclass(str_value='limo', list_value=[10, 20]),
             dic={'str_value': 'limo',
                  'list_value': [10, 20]},
             with_cls=False,
             strict=True,
         ),
+        GoodCase(
+            name='dataclass with fields',
+            obj=DataclassWithField(init_value='A', init_variable=10,
+                                   default_value=20),
+            dic={'init_value': 'A', 'post_init_value': 30, 'default_value': 20},
+            with_cls=False,
+            strict=True,
+        )
     ]
 
 
