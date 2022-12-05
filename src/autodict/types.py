@@ -107,36 +107,3 @@ def inspect_generic_templ_args(cls: type, defaults=()):
 
 def inspect_generic_origin(cls: type):
     return getattr(cls, '__extra__', None) or getattr(cls, '__origin__', None)
-
-# def _resolve_cls(cls_ref: type or str or ForwardRef, ctx_module: str = None):
-#     """
-#     Resolve class by a class reference.
-#
-#     :param cls_ref: A reference to a class, either directly be a class type, or
-#       be a full class path, or be an inner module path, or be a `ForwardRef`.
-#     :param ctx_module: Module path. This is used only when `cls_ref` is an inner
-#       module path.
-#     :return: the resolved class.
-#     """
-#     if not cls_ref:
-#         return
-#
-#     if isinstance(cls_ref, ForwardRef):
-#         cls_ref = cls_ref.__forward_arg__
-#
-#     if isinstance(cls_ref, str):
-#         try:
-#             module_name, cls_name = cls_ref.rsplit('.', maxsplit=1)
-#             module = importlib.import_module(module_name)
-#             inner_module_ref = cls_name
-#
-#         except (ModuleNotFoundError, ValueError):
-#             module = importlib.import_module(ctx_module)
-#             inner_module_ref = cls_ref
-#
-#         cls = module
-#         for cls_name in inner_module_ref.split('.'):
-#             cls = getattr(cls, cls_name)
-#         return cls
-#
-#     return cls_ref
