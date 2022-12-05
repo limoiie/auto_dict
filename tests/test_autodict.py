@@ -9,7 +9,7 @@ import pytest
 from autodict import AutoDict, dictable
 from autodict.autodict import Dictable, from_dictable, to_dictable
 from autodict.errors import UnableFromDict, UnableToDict
-from conftest import support_literals, support_positional_only
+from conftest import support_literals
 
 
 @dictable
@@ -69,28 +69,16 @@ class WithEmptyConstructor:
             self.__private_value == other.__private_value
 
 
-if support_positional_only():
-    @dictable
-    class WithComplexConstructor:
-        def __init__(self, a, /, b, c=10, *d, e, f=20, **g):
-            self.a, self.b, self.c, self.d, self.e, self.f, self.g = \
-                a, b, c, d, e, f, g
+@dictable
+class WithComplexConstructor:
+    def __init__(self, a, b, c=10, *d, e, f=20, **g):
+        self.a, self.b, self.c, self.d, self.e, self.f, self.g = \
+            a, b, c, d, e, f, g
 
-        def __eq__(self, other):
-            return isinstance(other, WithComplexConstructor) and \
-                   self.a, self.b, self.c, self.d, self.e, self.f, self.g == \
-                   other.a, other.b, other.c, other.d, other.e, other.f, other.g
-else:
-    @dictable
-    class WithComplexConstructor:
-        def __init__(self, a, b, c=10, *d, e, f=20, **g):
-            self.a, self.b, self.c, self.d, self.e, self.f, self.g = \
-                a, b, c, d, e, f, g
-
-        def __eq__(self, other):
-            return isinstance(other, WithComplexConstructor) and \
-                   self.a, self.b, self.c, self.d, self.e, self.f, self.g == \
-                   other.a, other.b, other.c, other.d, other.e, other.f, other.g
+    def __eq__(self, other):
+        return isinstance(other, WithComplexConstructor) and \
+               self.a, self.b, self.c, self.d, self.e, self.f, self.g == \
+               other.a, other.b, other.c, other.d, other.e, other.f, other.g
 
 
 @dictable
