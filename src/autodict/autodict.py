@@ -13,7 +13,7 @@ from autodict.mapping_factory import mapping_builder
 from autodict.predefined import dataclass_from_dict, dataclass_to_dict, \
     default_from_dict, default_to_dict, enum_from_dict, enum_to_dict, \
     unable_from_dict, unable_to_dict
-from autodict.types import T, inspect_generic_origin, \
+from autodict.types import O, T, inspect_generic_origin, \
     inspect_generic_templ_args, is_annotated_class, is_builtin, is_generic, \
     is_generic_collection, is_generic_literal, is_generic_union, stable_map
 
@@ -121,7 +121,7 @@ class Dictable:
         return default_to_dict(self)
 
     @classmethod
-    def _from_dict(cls: Type[T], obj: dict) -> T:
+    def _from_dict(cls: Type[T], obj: O) -> T:
         """
         Transform a dictionary to an instance of this class.
 
@@ -148,7 +148,7 @@ class Dictable:
         return AutoDict.to_dict(self, with_cls=with_cls, strict=strict)
 
     @classmethod
-    def from_dict(cls: Type[T], obj: dict, strict=True) -> T:
+    def from_dict(cls: Type[T], obj: O, strict=True) -> T:
         """
         Instantiate an object from a dictionary.
 
@@ -169,7 +169,7 @@ class AutoDict(Registry[Meta]):
     CLS_ANNO_KEY = '@'
 
     @staticmethod
-    def to_dict(ins, with_cls=True, recursively=True, strict=True):
+    def to_dict(ins: Any, with_cls=True, recursively=True, strict=True):
         """
         Transform `obj` to a dictionary if its class is registered.
 
@@ -207,7 +207,7 @@ class AutoDict(Registry[Meta]):
         return obj
 
     @staticmethod
-    def from_dict(obj: dict or T, cls: Type[T] = None, recursively=True,
+    def from_dict(obj: O, cls: Type[T] = None, recursively=True,
                   strict=True) -> T:
         """
         Instantiate an object from a dictionary.
@@ -248,12 +248,12 @@ class AutoDict(Registry[Meta]):
         return ins
 
     @staticmethod
-    def _embed_class(cls: type, obj: dict, with_cls: bool):
-        if with_cls and not is_builtin(cls) and isinstance(obj, Mapping):
+    def _embed_class(cls: Type[T], obj: O, with_cls: bool):
+        if with_cls and not is_builtin(cls) and isinstance(obj, dict):
             obj[AutoDict.CLS_ANNO_KEY] = AutoDict.meta_of(cls).name
 
     @staticmethod
-    def _extract_class(obj, strict: bool):
+    def _extract_class(obj: O, strict: bool):
         if not isinstance(obj, dict) or AutoDict.CLS_ANNO_KEY not in obj:
             return None
 
@@ -269,11 +269,11 @@ class AutoDict(Registry[Meta]):
         return cls
 
 
-def _items_to_dict(obj, fn_transform):
+def _items_to_dict(obj: O, fn_transform):
     return stable_map(obj, lambda v, _: fn_transform(v))
 
 
-def _items_from_dict(obj, cls, fn_transform):
+def _items_from_dict(obj: O, cls: type, fn_transform):
     if is_dataclass(cls):
         return _items_from_dict_dataclass(obj, cls, fn_transform)
 
@@ -289,7 +289,7 @@ def _items_from_dict(obj, cls, fn_transform):
     return stable_map(obj, lambda v, _: fn_transform(v, None))
 
 
-def _items_from_dict_dataclass(obj, cls, fn_transform):
+def _items_from_dict_dataclass(obj: O, cls: type, fn_transform):
     annotations = get_type_hints(cls)
 
     def transform_field(field_dic, field_name):
@@ -303,7 +303,7 @@ def _items_from_dict_dataclass(obj, cls, fn_transform):
     return stable_map(obj, transform_field)
 
 
-def _items_from_dict_annotated_class(obj, cls, fn_transform):
+def _items_from_dict_annotated_class(obj: O, cls: type, fn_transform):
     annotations = get_type_hints(cls)
 
     def transform_field(field_dic, field_name):
@@ -312,7 +312,7 @@ def _items_from_dict_annotated_class(obj, cls, fn_transform):
     return stable_map(obj, transform_field)
 
 
-def _items_from_dict_generic_non_collection(obj, cls, fn_transform):
+def _items_from_dict_generic_non_collection(obj: O, cls: type, fn_transform):
     if is_generic_union(cls):
         cand_classes = inspect_generic_templ_args(cls, defaults=(Any,))
         cand_objects = dict()
@@ -342,7 +342,7 @@ def _items_from_dict_generic_non_collection(obj, cls, fn_transform):
     return obj
 
 
-def _items_from_dict_generic_collection(obj, cls, fn_transform):
+def _items_from_dict_generic_collection(obj: O, cls: type, fn_transform):
     # infer item type from template args of typing._GenericAlias
     data_cls = inspect_generic_origin(cls)
     assert issubclass(data_cls, type(obj))

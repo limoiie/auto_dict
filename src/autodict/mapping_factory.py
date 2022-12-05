@@ -1,8 +1,8 @@
-from typing import Callable, Iterable, Mapping, Type, TypeVar
+from typing import Callable, Iterable, Type
 
 from registry import Registry
 
-M = TypeVar('M', bound=Mapping)
+from autodict.types import M
 
 
 class _Meta:

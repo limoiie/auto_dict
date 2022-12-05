@@ -1,8 +1,8 @@
 from typing import Any, Callable, Collection, Mapping, TypeVar, Union
 
-from autodict.mapping_factory import mapping_factory
-
 T = TypeVar('T')
+M = TypeVar('M', bound=Mapping)
+O = TypeVar('O', bool, int, float, str, list, set, tuple, dict, type(None))
 
 
 def is_builtin(cls: type):
@@ -84,6 +84,8 @@ def stable_map(obj, mapper: Callable[[Any, Any], Any]):
     cls = obj.__class__
 
     if issubclass(cls, Mapping):
+        from autodict.mapping_factory import mapping_factory
+
         return mapping_factory(cls, (
             (key, mapper(item, key)) for key, item in obj.items()))
 
