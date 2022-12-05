@@ -28,7 +28,5 @@ def default_value(field: Field) -> Any:
 
 def instantiate(cls: Type[T], init_values: dict, post_init_values: dict) -> T:
     obj = cls(**init_values)
-    for key, val in post_init_values.items():
-        setattr(obj, key, val)
-
+    obj.__dict__.update(**post_init_values)
     return obj

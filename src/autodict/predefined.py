@@ -1,6 +1,7 @@
 import copy
 import dataclasses
 import enum
+import inspect
 from typing import Any, Type
 
 import autodict.dataclasses as dataclasses_ext
@@ -13,15 +14,54 @@ def default_to_dict(ins: Any) -> O:
 
 
 def default_from_dict(cls: Type[T], obj: O) -> T:
-    # todo: support mixin style construction
-    try:
+    fn_init = getattr(cls, '__init__', None)
+    if fn_init:
+        cand_param_values = {
+            strip_hidden_member_prefix(cls, field_name):
+                (field_name, field_value)
+            for field_name, field_value in obj.items()
+        }
+        positional_param_values = list()
+        keyword_param_values = dict()
+        init_field_names = set()
+
+        # capture param assignments
+        sig = inspect.signature(fn_init)
+        for param in sig.parameters.values():
+            if param.name == 'self':
+                continue
+
+            if param.name in cand_param_values:
+                field_name, field_value = cand_param_values[param.name]
+                init_field_names.add(field_name)
+
+                if param.kind == inspect.Parameter.POSITIONAL_ONLY:
+                    positional_param_values.append(field_value)
+                elif param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD:
+                    positional_param_values.append(field_value)
+                elif param.kind == inspect.Parameter.VAR_POSITIONAL:
+                    positional_param_values.extend(field_value)
+                elif param.kind == inspect.Parameter.KEYWORD_ONLY:
+                    keyword_param_values[param.name] = field_value
+                elif param.kind == inspect.Parameter.VAR_KEYWORD:
+                    keyword_param_values.update(field_value)
+
+            else:
+                keyword_param_values[param.name] = param.default
+
+        # fields that not in __init__ parameter list
+        post_init_values = {
+            field_name: field_value
+            for field_name, field_value in obj.items()
+            if field_name not in init_field_names
+        }
+        ins = cls(*positional_param_values, **keyword_param_values)
+
+    else:
+        post_init_values = obj
         ins = cls()
-        ins.__dict__.update(**obj)
-    except TypeError:
-        ins = cls(**{
-            strip_hidden_member_prefix(cls, field): val
-            for field, val in obj.items()
-        })
+
+    ins.__dict__.update(post_init_values)
     return ins
 
 
