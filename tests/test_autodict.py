@@ -240,59 +240,59 @@ class DataclassWithField:
         self.post_init_value = self.default_value + init_variable
 
 
-GoodCase = namedtuple('GoodCase', 'obj,dic,with_cls,strict,name')
+GoodCase = namedtuple('GoodCase', 'ins,obj,with_cls,strict,name')
 
-BadCase = namedtuple('BadCase', 'obj,dic,with_cls,strict,exc,raises,name')
+BadCase = namedtuple('BadCase', 'ins,obj,with_cls,strict,exc,raises,name')
 
 
 def generate_good_cases() -> List[GoodCase]:
     return [
         GoodCase(
             name='with embedded class info',
-            obj=Normal(str_value='limo', int_value=10),
-            dic={'str_value': 'limo', 'int_value': 10, '@': 'Normal', },
+            ins=Normal(str_value='limo', int_value=10),
+            obj={'str_value': 'limo', 'int_value': 10, '@': 'Normal', },
             with_cls=True,
             strict=True,
         ),
         GoodCase(
             name='without embedded class info',
-            obj=Normal(str_value='limo', int_value=10),
-            dic={'str_value': 'limo', 'int_value': 10, },
+            ins=Normal(str_value='limo', int_value=10),
+            obj={'str_value': 'limo', 'int_value': 10, },
             with_cls=False,
             strict=True,
         ),
         GoodCase(
             name='with embedded class info but customized name',
-            obj=CustomName(str_value='limo', int_value=10),
-            dic={'str_value': 'limo', 'int_value': 10, '@': 'SomeA', },
+            ins=CustomName(str_value='limo', int_value=10),
+            obj={'str_value': 'limo', 'int_value': 10, '@': 'SomeA', },
             with_cls=True,
             strict=True,
         ),
         GoodCase(
             name='allow un-dictable without embedding class info',
+            ins=Unregistered(str_value='limo', int_value=10),
             obj=Unregistered(str_value='limo', int_value=10),
-            dic=Unregistered(str_value='limo', int_value=10),
             with_cls=False,
             strict=False,
         ),
         GoodCase(
             name='allow un-dictable with embedded class info',
+            ins={'str_value': 'limo', 'int_value': 10, '@': 'Unregistered'},
             obj={'str_value': 'limo', 'int_value': 10, '@': 'Unregistered'},
-            dic={'str_value': 'limo', 'int_value': 10, '@': 'Unregistered'},
             with_cls=True,
             strict=False,
         ),
         GoodCase(
             name='when target is a dict itself',
+            ins={'str_value': 'limo', 'int_value': 10},
             obj={'str_value': 'limo', 'int_value': 10},
-            dic={'str_value': 'limo', 'int_value': 10},
             with_cls=True,
             strict=True,
         ),
         GoodCase(
             name='when has hidden fields while constructor has no arg',
-            obj=WithEmptyConstructor.create('limo', 20),
-            dic={'_protected_value': 'limo',
+            ins=WithEmptyConstructor.create('limo', 20),
+            obj={'_protected_value': 'limo',
                  '_WithEmptyConstructor__private_value': 20,
                  '@': 'WithEmptyConstructor'},
             with_cls=True,
@@ -300,8 +300,8 @@ def generate_good_cases() -> List[GoodCase]:
         ),
         GoodCase(
             name='when has hidden fields while constructor has args',
-            obj=WithHiddenMember('limo', 20),
-            dic={'_protected_value': 'limo',
+            ins=WithHiddenMember('limo', 20),
+            obj={'_protected_value': 'limo',
                  '_WithHiddenMember__private_value': 20,
                  '@': 'WithHiddenMember'},
             with_cls=True,
@@ -309,8 +309,8 @@ def generate_good_cases() -> List[GoodCase]:
         ),
         GoodCase(
             name='when has inherited hidden fields while constructor has args',
-            obj=WithInheritedHiddenMember('limo', 20),
-            dic={'_protected_value': 'limo',
+            ins=WithInheritedHiddenMember('limo', 20),
+            obj={'_protected_value': 'limo',
                  '_WithHiddenMember__private_value': 20,
                  '@': 'WithInheritedHiddenMember'},
             with_cls=True,
@@ -318,9 +318,9 @@ def generate_good_cases() -> List[GoodCase]:
         ),
         GoodCase(
             name='nested dictable with class annotation',
-            obj=NestDictable(a=Normal(str_value='limo', int_value=10),
+            ins=NestDictable(a=Normal(str_value='limo', int_value=10),
                              count=20),
-            dic={'a': {'str_value': 'limo', 'int_value': 10, '@': 'Normal'},
+            obj={'a': {'str_value': 'limo', 'int_value': 10, '@': 'Normal'},
                  'count': 20,
                  '@': 'NestDictable'},
             with_cls=True,
@@ -328,11 +328,11 @@ def generate_good_cases() -> List[GoodCase]:
         ),
         GoodCase(
             name='nested dictable with generic list',
-            obj=AnnotatedList(b_list=[
+            ins=AnnotatedList(b_list=[
                 NestDictable(a=Normal(str_value='limo', int_value=20),
                              count=3)],
                 count=4),
-            dic={'@': 'AnnotatedList',
+            obj={'@': 'AnnotatedList',
                  'b_list': [{'@': 'NestDictable',
                              'a': {'@': 'Normal', 'int_value': 20,
                                    'str_value': 'limo'},
@@ -343,32 +343,32 @@ def generate_good_cases() -> List[GoodCase]:
         ),
         GoodCase(
             name='nested dictable with generic union - 1',
-            obj=AnnotatedUnion(union_value='string value'),
-            dic={'union_value': 'string value'},
+            ins=AnnotatedUnion(union_value='string value'),
+            obj={'union_value': 'string value'},
             with_cls=False,
             strict=False,
         ),
         GoodCase(
             name='nested dictable with generic union - 2',
-            obj=AnnotatedUnion(union_value=Normal(str_value='o', int_value=0)),
-            dic={'union_value': {'str_value': 'o',
+            ins=AnnotatedUnion(union_value=Normal(str_value='o', int_value=0)),
+            obj={'union_value': {'str_value': 'o',
                                  'int_value': 0}},
             with_cls=False,
             strict=False,
         ),
         GoodCase(
             name='nested dictable with generic union - 3',
-            obj=AnnotatedUnion(union_value=['string', 'value']),
-            dic={'union_value': ['string', 'value']},
+            ins=AnnotatedUnion(union_value=['string', 'value']),
+            obj={'union_value': ['string', 'value']},
             with_cls=False,
             strict=False,
         ),
         GoodCase(
             name='nested dictable with generic list union',
-            obj=AnnotatedListUnion(
+            ins=AnnotatedListUnion(
                 value=['string', Normal(str_value='o', int_value=0),
                        ['string', 'value']]),
-            dic={'value': ['string',
+            obj={'value': ['string',
                            {'str_value': 'o',
                             'int_value': 0},
                            ['string', 'value']]},
@@ -377,20 +377,20 @@ def generate_good_cases() -> List[GoodCase]:
         ),
         GoodCase(
             name='nested dictable with generic literal',
-            obj=AnnotatedLiteral(value='w+'),
-            dic={'value': 'w+'},
+            ins=AnnotatedLiteral(value='w+'),
+            obj={'value': 'w+'},
             with_cls=False,
             strict=False,
         ),
         GoodCase(
             name='nested dictable with class annotation string',
-            obj=AnnotatedRef(
+            ins=AnnotatedRef(
                 b=NestDictable(a=Normal(str_value='limo', int_value=10),
                                count=2),
                 b_list=[NestDictable(a=Normal(str_value='limo', int_value=20),
                                      count=3)],
                 count=4),
-            dic={'@': 'AnnotatedRef',
+            obj={'@': 'AnnotatedRef',
                  'b': {'@': 'NestDictable',
                        'a': {'@': 'Normal', 'int_value': 10,
                              'str_value': 'limo'},
@@ -405,9 +405,9 @@ def generate_good_cases() -> List[GoodCase]:
         ),
         GoodCase(
             name='allow dictable has a non-dictable field',
-            obj=NestUnDictable(a=Unregistered(str_value='limo', int_value=10),
+            ins=NestUnDictable(a=Unregistered(str_value='limo', int_value=10),
                                count=20),
-            dic={
+            obj={
                 'a': Unregistered(str_value='limo', int_value=10),
                 'count': 20,
                 '@': 'NestUnDictable'
@@ -417,18 +417,18 @@ def generate_good_cases() -> List[GoodCase]:
         ),
         GoodCase(
             name='allow non-dictable has a dictable field',
-            obj=UnDictableNest(a=Normal(str_value='limo', int_value=10),
+            ins=UnDictableNest(a=Normal(str_value='limo', int_value=10),
                                count=2),
-            dic=UnDictableNest(a=Normal(str_value='limo', int_value=10),
+            obj=UnDictableNest(a=Normal(str_value='limo', int_value=10),
                                count=2),
             with_cls=True,
             strict=False,
         ),
         GoodCase(
             name='nested dictable with special std types',
-            obj=AnnotatedSpecialStd(path=pathlib.Path('/home/limo/.bashrc'),
+            ins=AnnotatedSpecialStd(path=pathlib.Path('/home/limo/.bashrc'),
                                     color=Color.Red),
-            dic={'@': 'AnnotatedSpecialStd',
+            obj={'@': 'AnnotatedSpecialStd',
                  'path': '/home/limo/.bashrc',
                  'color': {
                      '@': 'Color',
@@ -440,17 +440,17 @@ def generate_good_cases() -> List[GoodCase]:
         ),
         GoodCase(
             name='native support to dataclass',
-            obj=NativeDataclass(str_value='limo', list_value=[10, 20]),
-            dic={'str_value': 'limo',
+            ins=NativeDataclass(str_value='limo', list_value=[10, 20]),
+            obj={'str_value': 'limo',
                  'list_value': [10, 20]},
             with_cls=False,
             strict=True,
         ),
         GoodCase(
             name='dataclass with fields',
-            obj=DataclassWithField(init_value='A', init_variable=10,
+            ins=DataclassWithField(init_value='A', init_variable=10,
                                    default_value=20),
-            dic={'init_value': 'A', 'post_init_value': 30, 'default_value': 20},
+            obj={'init_value': 'A', 'post_init_value': 30, 'default_value': 20},
             with_cls=False,
             strict=True,
         )
@@ -461,8 +461,8 @@ def generate_bad_cases():
     return [
         BadCase(
             name='unable to_dict in strict mode',
-            obj=Unregistered(str_value='limo', int_value=10),
-            dic=None,
+            ins=Unregistered(str_value='limo', int_value=10),
+            obj=None,
             with_cls=True,
             strict=True,
             exc=UnableToDict,
@@ -470,8 +470,8 @@ def generate_bad_cases():
         ),
         BadCase(
             name='unable from_dict in strict mode without embedded class info',
-            obj=None,
-            dic={'str_value': 'limo', 'int_value': 10},
+            ins=None,
+            obj={'str_value': 'limo', 'int_value': 10},
             with_cls=Unregistered,
             strict=True,
             exc=UnableFromDict,
@@ -479,8 +479,8 @@ def generate_bad_cases():
         ),
         BadCase(
             name='unable from_dict in strict mode with embedded class info',
-            obj=None,
-            dic={'str_value': 'limo', 'int_value': 10, '@': 'Unregistered'},
+            ins=None,
+            obj={'str_value': 'limo', 'int_value': 10, '@': 'Unregistered'},
             with_cls=None,
             strict=True,
             exc=UnableFromDict,
@@ -488,9 +488,9 @@ def generate_bad_cases():
         ),
         BadCase(
             name='panic if nested un-dictable when to_dict(.., strict)',
-            obj=NestUnDictable(Unregistered(str_value='limo', int_value=10),
+            ins=NestUnDictable(Unregistered(str_value='limo', int_value=10),
                                count=20),
-            dic=None,
+            obj=None,
             with_cls=True,
             strict=True,
             exc=UnableToDict,
@@ -498,8 +498,8 @@ def generate_bad_cases():
         ),
         BadCase(
             name='panic if nested un-dictable when from_dict(.., strict, cls)',
-            obj=None,
-            dic={
+            ins=None,
+            obj={
                 'a': {'str_value': 'limo', 'int_value': 10},
                 'count': 10,
             },
@@ -510,8 +510,8 @@ def generate_bad_cases():
         ),
         BadCase(
             name='panic if nested un-dictable when from_dict(.., strict)',
-            obj=None,
-            dic={
+            ins=None,
+            obj={
                 'a': {'str_value': 'limo', 'int_value': 10,
                       '@': 'Unregistered'},
                 'count': 10,
@@ -524,9 +524,9 @@ def generate_bad_cases():
         ),
         BadCase(
             name='panic if wrapped un-dictable when to_dict(.., strict)',
-            obj=UnDictableNest(Normal(str_value='limo', int_value=10),
+            ins=UnDictableNest(Normal(str_value='limo', int_value=10),
                                count=20),
-            dic=None,
+            obj=None,
             with_cls=True,
             strict=True,
             exc=UnableToDict,
@@ -534,8 +534,8 @@ def generate_bad_cases():
         ),
         BadCase(
             name='panic if wrapped un-dictable when from_dict(.., strict, cls)',
-            obj=None,
-            dic={
+            ins=None,
+            obj={
                 'a': {'str_value': 'limo', 'int_value': 10},
                 'count': 10,
             },
@@ -546,8 +546,8 @@ def generate_bad_cases():
         ),
         BadCase(
             name='panic if wrapped un-dictable when from_dict(.., strict)',
-            obj=None,
-            dic={
+            ins=None,
+            obj={
                 'a': {'str_value': 'limo', 'int_value': 10, '@': 'Normal'},
                 'count': 10,
                 '@': 'UnDictableNest'
@@ -567,22 +567,22 @@ def case_name(case):
 class TestAnnotate:
     @pytest.mark.parametrize('case', generate_good_cases(), ids=case_name)
     def test_to_dict(self, case: GoodCase):
-        assert AutoDict.to_dict(case.obj, with_cls=case.with_cls,
-                                strict=case.strict) == case.dic
+        assert AutoDict.to_dict(case.ins, with_cls=case.with_cls,
+                                strict=case.strict) == case.obj
 
     @pytest.mark.parametrize('case', generate_good_cases(), ids=case_name)
     def test_from_dict(self, case: GoodCase):
-        cls = None if case.with_cls else type(case.obj)
-        output_obj = AutoDict.from_dict(case.dic, cls=cls, strict=case.strict)
-        assert output_obj == case.obj
+        cls = None if case.with_cls else type(case.ins)
+        output_obj = AutoDict.from_dict(case.obj, cls=cls, strict=case.strict)
+        assert output_obj == case.ins
 
     @pytest.mark.parametrize('case', generate_bad_cases(), ids=case_name)
     def test_failed_to_or_from_dict(self, case: BadCase):
         with pytest.raises(case.exc, **case.raises):
-            if case.dic is None:
-                AutoDict.to_dict(case.obj, case.with_cls, strict=case.strict)
-            elif case.obj is None:
-                AutoDict.from_dict(case.dic, case.with_cls, strict=case.strict)
+            if case.obj is None:
+                AutoDict.to_dict(case.ins, case.with_cls, strict=case.strict)
+            elif case.ins is None:
+                AutoDict.from_dict(case.obj, case.with_cls, strict=case.strict)
 
     @to_dictable
     class PartialTo:
@@ -702,10 +702,10 @@ class TestDerive:
                 self.int_value == other.int_value
 
         @classmethod
-        def _from_dict(cls, dic: dict) -> 'TestDerive.OverrideBoth':
+        def _from_dict(cls, obj: dict) -> 'TestDerive.OverrideBoth':
             g = TestDerive.OverrideBoth()
-            g.str_value = dic['str_value']
-            g.int_value = dic['int_value']
+            g.str_value = obj['str_value']
+            g.int_value = obj['int_value']
             return g
 
         def _to_dict(self) -> dict:
@@ -739,10 +739,10 @@ class TestDerive:
                 self.count == other.count
 
         @classmethod
-        def _from_dict(cls, dic: dict) -> 'TestDerive.NestedOverride':
+        def _from_dict(cls, obj: dict) -> 'TestDerive.NestedOverride':
             h = TestDerive.NestedOverride()
-            h.g = dic['g']
-            h.count = dic['count']
+            h.g = obj['g']
+            h.count = obj['count']
             return h
 
         def _to_dict(self) -> dict:

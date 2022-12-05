@@ -12,26 +12,26 @@ def default_to_dict(obj):
     return copy.copy(obj.__dict__)
 
 
-def default_from_dict(cls: Type[T], dic: dict) -> T:
+def default_from_dict(cls: Type[T], obj: dict) -> T:
     # todo: support mixin style construction
     try:
         obj = cls()
-        obj.__dict__.update(**dic)
+        obj.__dict__.update(**obj)
     except TypeError:
         obj = cls(**{
             strip_hidden_member_prefix(cls, field): val
-            for field, val in dic.items()
+            for field, val in obj.items()
         })
     return obj
 
 
-def enum_to_dict(obj: enum.Enum) -> dict:
-    return dict(value=obj.value, name=obj.name)
+def enum_to_dict(ins: enum.Enum) -> dict:
+    return dict(value=ins.value, name=ins.name)
 
 
-def enum_from_dict(cls: Type[T], dic: dict) -> T:
-    enum_name = dic['name']
-    enum_value = dic['value']
+def enum_from_dict(cls: Type[T], obj: dict) -> T:
+    enum_name = obj['name']
+    enum_value = obj['value']
 
     obj = cls(enum_value)
     assert obj.name == enum_name, \
@@ -40,16 +40,16 @@ def enum_from_dict(cls: Type[T], dic: dict) -> T:
     return obj
 
 
-def dataclass_to_dict(obj) -> dict:
-    return dict((f.name, getattr(obj, f.name)) for f in dataclasses.fields(obj))
+def dataclass_to_dict(ins) -> dict:
+    return dict((f.name, getattr(ins, f.name)) for f in dataclasses.fields(ins))
 
 
-def dataclass_from_dict(cls: Type[T], dic: dict) -> T:
+def dataclass_from_dict(cls: Type[T], obj: dict) -> T:
     init_values = {}
     post_init_values = {}
 
     for field in dataclasses_ext.instance_fields(cls):
-        field_value = dic[field.name] if field.name in dic else \
+        field_value = obj[field.name] if field.name in obj else \
             dataclasses_ext.default_value(field)
 
         if field.init:
@@ -60,9 +60,9 @@ def dataclass_from_dict(cls: Type[T], dic: dict) -> T:
     return dataclasses_ext.instantiate(cls, init_values, post_init_values)
 
 
-def unable_to_dict(obj) -> dict:
-    raise UnableToDict(type(obj))
+def unable_to_dict(ins) -> dict:
+    raise UnableToDict(type(ins))
 
 
-def unable_from_dict(cls: Type[T], _dic: dict) -> T:
+def unable_from_dict(cls: Type[T], _obj: dict) -> T:
     raise UnableFromDict(cls)
