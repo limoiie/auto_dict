@@ -4,7 +4,14 @@ import inspect
 from dataclasses import is_dataclass
 # noinspection PyUnresolvedReferences,PyProtectedMember
 from typing import Any, Callable, ForwardRef, List, Mapping, Optional, Tuple, \
-    Type, TypeVar, Union, _GenericAlias, final, get_type_hints
+    Type, TypeVar, Union, _GenericAlias, get_type_hints
+
+try:
+    from typing import final
+
+except ImportError:
+    def final(obj: Any) -> Any:
+        return obj
 
 from registry import Registry
 
