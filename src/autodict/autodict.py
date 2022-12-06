@@ -206,7 +206,7 @@ class AutoDict(Registry[Meta]):
         if options.recursively:
             obj = _items_to_dict(obj, options)
 
-        embed_class(cls, obj, options)
+        obj = embed_class(cls, obj, options)
         return obj
 
     @staticmethod
@@ -244,12 +244,14 @@ class AutoDict(Registry[Meta]):
         return ins
 
 
-def embed_class(cls: Type[T], obj: O, options: Options):
+def embed_class(cls: Type[T], obj: O, options: Options) -> O:
     if options.with_cls and not is_builtin(cls) and isinstance(obj, dict):
         obj[AutoDict.CLS_ANNO_KEY] = AutoDict.meta_of(cls).name
+    return obj
 
 
-def strip_class(obj: O, cand_cls: Optional[Type[T]], options: Options):
+def strip_class(obj: O, cand_cls: Optional[Type[T]], options: Options) \
+        -> Optional[Type[T]]:
     if not isinstance(obj, dict) or AutoDict.CLS_ANNO_KEY not in obj:
         return cand_cls
 
