@@ -25,7 +25,8 @@ class Meta:
     from_dict: Optional[Callable[[Type[T], dict], T]] = None
 
 
-def dictable(cls: T = None, name=None, to_dict=None, from_dict=None):
+def dictable(cls: T = None, name=None, to_dict=None, from_dict=None) \
+        -> Union[T, Callable[[T], T]]:
     """
     Annotate [Cls] as dictable.
 
@@ -58,7 +59,8 @@ def dictable(cls: T = None, name=None, to_dict=None, from_dict=None):
     return inner(cls) if cls else inner
 
 
-def to_dictable(cls: T = None, name=None, to_dict=None):
+def to_dictable(cls: T = None, name=None, to_dict=None) \
+        -> Union[T, Callable[[T], T]]:
     """
     Annotate [cls] as to_dictable.
 
@@ -77,7 +79,8 @@ def to_dictable(cls: T = None, name=None, to_dict=None):
     return dictable(cls, name=name, to_dict=to_dict, from_dict=from_dict)
 
 
-def from_dictable(cls: T = None, name=None, from_dict=None):
+def from_dictable(cls: T = None, name=None, from_dict=None) \
+        -> Union[T, Callable[[T], T]]:
     """
     Annotate [cls] as from_dictable.
 
