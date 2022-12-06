@@ -6,14 +6,15 @@ from typing import Any, Type
 
 import autodict.dataclasses as dataclasses_ext
 from autodict.errors import UnableFromDict, UnableToDict
+from autodict.options import Options
 from autodict.types import O, T, strip_hidden_member_prefix
 
 
-def default_to_dict(ins: Any) -> O:
+def default_to_dict(ins: Any, _option: Options) -> O:
     return copy.copy(ins.__dict__)
 
 
-def default_from_dict(cls: Type[T], obj: O) -> T:
+def default_from_dict(cls: Type[T], obj: O, _option: Options) -> T:
     fn_init = getattr(cls, '__init__', None)
     if fn_init:
         cand_param_values = {
@@ -65,11 +66,11 @@ def default_from_dict(cls: Type[T], obj: O) -> T:
     return ins
 
 
-def enum_to_dict(ins: enum.Enum) -> O:
+def enum_to_dict(ins: enum.Enum, _options: Options) -> O:
     return dict(value=ins.value, name=ins.name)
 
 
-def enum_from_dict(cls: Type[T], obj: dict) -> T:
+def enum_from_dict(cls: Type[T], obj: dict, _options: Options) -> T:
     enum_name = obj['name']
     enum_value = obj['value']
 
@@ -80,11 +81,11 @@ def enum_from_dict(cls: Type[T], obj: dict) -> T:
     return obj
 
 
-def dataclass_to_dict(ins: Any) -> O:
+def dataclass_to_dict(ins: Any, _options: Options) -> O:
     return dict((f.name, getattr(ins, f.name)) for f in dataclasses.fields(ins))
 
 
-def dataclass_from_dict(cls: Type[T], obj: dict) -> T:
+def dataclass_from_dict(cls: Type[T], obj: dict, _options: Options) -> T:
     init_values = {}
     post_init_values = {}
 
@@ -100,9 +101,9 @@ def dataclass_from_dict(cls: Type[T], obj: dict) -> T:
     return dataclasses_ext.instantiate(cls, init_values, post_init_values)
 
 
-def unable_to_dict(ins: Any):
+def unable_to_dict(ins: Any, _options: Options):
     raise UnableToDict(type(ins))
 
 
-def unable_from_dict(cls: Type[T], _obj: O) -> T:
+def unable_from_dict(cls: Type[T], _obj: O, _options: Options) -> T:
     raise UnableFromDict(cls)

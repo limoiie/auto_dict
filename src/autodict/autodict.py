@@ -4,12 +4,13 @@ import inspect
 from dataclasses import is_dataclass
 # noinspection PyUnresolvedReferences,PyProtectedMember
 from typing import Any, Callable, ForwardRef, List, Mapping, Optional, Tuple, \
-    Type, TypeVar, Union, _GenericAlias, get_type_hints
+    Type, TypeVar, Union, _GenericAlias, final, get_type_hints
 
 from registry import Registry
 
 from autodict.errors import UnableFromDict, UnableToDict
 from autodict.mapping_factory import mapping_builder
+from autodict.options import Options
 from autodict.predefined import dataclass_from_dict, dataclass_to_dict, \
     default_from_dict, default_to_dict, enum_from_dict, enum_to_dict, \
     unable_from_dict, unable_to_dict
@@ -21,8 +22,8 @@ from autodict.types import O, T, inspect_generic_origin, \
 @dataclasses.dataclass
 class Meta:
     name: str
-    to_dict: Optional[Callable[[Any], dict]] = None
-    from_dict: Optional[Callable[[Type[T], dict], T]] = None
+    to_dict: Optional[Callable[[Any, Options], dict]] = None
+    from_dict: Optional[Callable[[Type[T], dict, Options], T]] = None
 
 
 def dictable(cls: T = None, name=None, to_dict=None, from_dict=None) \
@@ -44,7 +45,10 @@ def dictable(cls: T = None, name=None, to_dict=None, from_dict=None) \
     """
 
     def inner(_cls):
-        if issubclass(_cls, enum.Enum):
+        if is_dataclass(_cls):
+            to_dict_ = to_dict or dataclass_to_dict
+            from_dict_ = from_dict or dataclass_from_dict
+        elif issubclass(_cls, enum.Enum):
             to_dict_ = to_dict or enum_to_dict
             from_dict_ = from_dict or enum_from_dict
         else:
@@ -109,7 +113,7 @@ class Dictable:
     def __init_subclass__(cls, name=None, to_dict=None, from_dict=None):
         dictable(cls, name=name, to_dict=to_dict, from_dict=from_dict)
 
-    def _to_dict(self) -> dict:
+    def _to_dict(self, options: Options) -> dict:
         """
         Transform self into a dictionary.
 
@@ -118,10 +122,10 @@ class Dictable:
 
         :return: The transformed dictionary.
         """
-        return default_to_dict(self)
+        return default_to_dict(self, options)
 
     @classmethod
-    def _from_dict(cls: Type[T], obj: O) -> T:
+    def _from_dict(cls: Type[T], obj: O, options: Options) -> T:
         """
         Transform a dictionary to an instance of this class.
 
@@ -131,24 +135,23 @@ class Dictable:
         :param obj: The dictionary.
         :return: An instance of this class.
         """
-        return default_from_dict(cls, obj)
+        return default_from_dict(cls, obj, options)
 
-    def to_dict(self, with_cls: bool = True, strict=True) -> dict:
+    @final
+    def to_dict(self, options: Optional[Options] = None) -> dict:
         """
         Transform self to a dictionary if its class is registered.
 
-        :param with_cls: A boolean value indicating if embedding class path into
-          the final dict or not.
-        :param strict: If true, raise :py:exc:`UnToDictable` when there is
-          non-builtin object is not to_dictable.
+        :param options: Options that controls the transform behaviors.
         :return: the transformed dictionary if the class of obj is registered;
           otherwise, just the original object.
         :raises UnToDictable: if there is non-builtin object is not to_dictable
         """
-        return AutoDict.to_dict(self, with_cls=with_cls, strict=strict)
+        return AutoDict.to_dict(self, options)
 
     @classmethod
-    def from_dict(cls: Type[T], obj: O, strict=True) -> T:
+    @final
+    def from_dict(cls: Type[T], obj: O, options: Optional[Options] = None) -> T:
         """
         Instantiate an object from a dictionary.
 
@@ -156,59 +159,52 @@ class Dictable:
           instantiation.
         :param cls: The class that is going to be instantiated against. If
           providing `None`, the real class will be inferred from the dictionary.
-        :param strict: If true, raise :py:exc:`UnToDictable` when there is
-          non-builtin object is not from_dictable.
+        :param options: Options that controls the transform behaviors.
         :return: the instantiated object of the given class.
         :raises UnFromDictable: if there is non-builtin object is not
           from_dictable.
         """
-        return AutoDict.from_dict(obj, cls, cls.__module__, strict=strict)
+        return AutoDict.from_dict(obj, cls, options)
 
 
 class AutoDict(Registry[Meta]):
     CLS_ANNO_KEY = '@'
 
     @staticmethod
-    def to_dict(ins: Any, with_cls=True, recursively=True, strict=True):
+    def to_dict(ins: Any, options: Optional[Options] = None):
         """
         Transform `obj` to a dictionary if its class is registered.
 
         :param ins: The object going to be transformed.
-        :param with_cls: A boolean value indicating if embedding class path into
-          the final dict or not.
-        :param recursively: A boolean value indicating if transform recursively.
-        :param strict: If true, raise :py:exc:`UnToDictable` when there is
-          non-builtin object is not to_dictable.
+        :param options: Options that controls the transform behaviors.
         :return: the transformed dictionary if the class of obj is registered;
           otherwise, just the original object.
         :raises UnToDictable: if there is non-builtin object is not to_dictable
         """
         cls = type(ins)
+        options = options or Options()
 
-        if ins and isinstance(ins, Dictable):
+        if issubclass(cls, Dictable):
             # noinspection PyProtectedMember
-            obj, is_pure_dataclass = ins._to_dict(), False
+            obj = ins._to_dict(options)
         elif AutoDict.registered(cls):
-            obj, is_pure_dataclass = AutoDict.meta_of(cls).to_dict(ins), False
+            obj = AutoDict.meta_of(cls).to_dict(ins, options)
         elif dataclasses.is_dataclass(ins):
-            obj, is_pure_dataclass = dataclass_to_dict(ins), True
-        elif is_builtin(cls) or not strict:
-            obj, is_pure_dataclass = ins, False
+            obj = dataclass_to_dict(ins, options)
+        elif is_builtin(cls) or not options.strict:
+            obj = ins
         else:
             raise UnableToDict(cls)
 
-        if recursively:
-            def fn_transform(obj_):
-                return AutoDict.to_dict(obj_, with_cls=with_cls, strict=strict)
+        if options.recursively:
+            obj = _items_to_dict(obj, options)
 
-            obj = _items_to_dict(obj, fn_transform)
-
-        AutoDict._embed_class(cls, obj, with_cls and not is_pure_dataclass)
+        embed_class(cls, obj, options)
         return obj
 
     @staticmethod
-    def from_dict(obj: O, cls: Type[T] = None, recursively=True,
-                  strict=True) -> T:
+    def from_dict(obj: O, cls: Type[T] = None,
+                  options: Optional[Options] = None) -> T:
         """
         Instantiate an object from a dictionary.
 
@@ -216,80 +212,73 @@ class AutoDict(Registry[Meta]):
           instantiation.
         :param cls: The class that is going to be instantiated against. If
           providing `None`, the real class will be inferred from the dictionary.
-        :param recursively: A boolean value indicating if transforms
-          items/fields or not.
-        :param strict: If true, raise :py:exc:`UnFromDictable` when there is
-          non-builtin object is not from_dictable.
+        :param options: Options that controls the transform behaviors.
         :return: the instantiated object of the given class.
         :raises UnFromDictable: if there is non-builtin object is not
           from_dictable.
         """
-        embedded_cls = AutoDict._extract_class(obj, strict)
-        cls = embedded_cls or cls if is_generic_union(cls) else \
-            cls or embedded_cls
+        options = options or Options()
+        cls = strip_class(obj, cls, options)
 
-        if recursively:
-            def rec(item_dic, item_cls):
-                return AutoDict.from_dict(item_dic, item_cls, strict=strict)
-
-            obj = _items_from_dict(obj, cls, rec)
+        if options.recursively:
+            obj = _items_from_dict(obj, cls, options)
 
         if inspect.isclass(cls) and issubclass(cls, Dictable):
-            ins = cls._from_dict(obj)
+            ins = cls._from_dict(obj, options)
         elif AutoDict.registered(cls):
-            ins = AutoDict.meta_of(cls).from_dict(cls, obj)
+            ins = AutoDict.meta_of(cls).from_dict(cls, obj, options)
         elif dataclasses.is_dataclass(cls):
-            ins = dataclass_from_dict(cls, obj)
-        elif cls is None or is_builtin(cls) or not strict:
+            ins = dataclass_from_dict(cls, obj, options)
+        elif cls is None or is_builtin(cls) or not options.strict:
             ins = obj
         else:
             raise UnableFromDict(cls)
 
         return ins
 
-    @staticmethod
-    def _embed_class(cls: Type[T], obj: O, with_cls: bool):
-        if with_cls and not is_builtin(cls) and isinstance(obj, dict):
-            obj[AutoDict.CLS_ANNO_KEY] = AutoDict.meta_of(cls).name
 
-    @staticmethod
-    def _extract_class(obj: O, strict: bool):
-        if not isinstance(obj, dict) or AutoDict.CLS_ANNO_KEY not in obj:
-            return None
-
-        cls_name = obj[AutoDict.CLS_ANNO_KEY]
-        cls = AutoDict.query(name=cls_name)
-
-        if cls is None:
-            if strict:
-                raise UnableFromDict(cls_name)
-        else:
-            del obj[AutoDict.CLS_ANNO_KEY]
-
-        return cls
+def embed_class(cls: Type[T], obj: O, options: Options):
+    if options.with_cls and not is_builtin(cls) and isinstance(obj, dict):
+        obj[AutoDict.CLS_ANNO_KEY] = AutoDict.meta_of(cls).name
 
 
-def _items_to_dict(obj: O, fn_transform):
-    return stable_map(obj, lambda v, _: fn_transform(v))
+def strip_class(obj: O, cand_cls: Optional[Type[T]], options: Options):
+    if not isinstance(obj, dict) or AutoDict.CLS_ANNO_KEY not in obj:
+        return cand_cls
+
+    cls_name = obj[AutoDict.CLS_ANNO_KEY]
+    cls = AutoDict.query(name=cls_name)
+
+    if cls is None:
+        if options.strict:
+            raise UnableFromDict(cls_name)
+    else:
+        del obj[AutoDict.CLS_ANNO_KEY]
+
+    return cls
 
 
-def _items_from_dict(obj: O, cls: type, fn_transform):
+def _items_to_dict(obj: O, options: Options):
+    return stable_map(obj, lambda v, _: AutoDict.to_dict(v, options))
+
+
+def _items_from_dict(obj: O, cls: Optional[type], options: Options):
     if is_dataclass(cls):
-        return _items_from_dict_dataclass(obj, cls, fn_transform)
+        return _items_from_dict_dataclass(obj, cls, options)
 
     if is_annotated_class(cls):
-        return _items_from_dict_annotated_class(obj, cls, fn_transform)
+        return _items_from_dict_annotated_class(obj, cls, options)
 
     if is_generic_collection(cls):  # List, Set, Dict, Tuple, Mapping, etc
-        return _items_from_dict_generic_collection(obj, cls, fn_transform)
+        return _items_from_dict_generic_collection(obj, cls, options)
 
     if is_generic(cls):  # Union including Optional,
-        return _items_from_dict_generic_non_collection(obj, cls, fn_transform)
+        return _items_from_dict_generic_non_collection(obj, cls, options)
 
-    return stable_map(obj, lambda v, _: fn_transform(v, None))
+    return stable_map(obj, lambda v, _: AutoDict.from_dict(v, None, options))
 
 
-def _items_from_dict_dataclass(obj: O, cls: type, fn_transform):
+def _items_from_dict_dataclass(obj: O, cls: type, opts: Options):
     annotations = get_type_hints(cls)
 
     def transform_field(field_dic, field_name):
@@ -298,21 +287,21 @@ def _items_from_dict_dataclass(obj: O, cls: type, fn_transform):
                 issubclass(field_cls, dataclasses.InitVar):
             field_cls = field_cls.type
 
-        return fn_transform(field_dic, field_cls)
+        return AutoDict.from_dict(field_dic, field_cls, opts)
 
     return stable_map(obj, transform_field)
 
 
-def _items_from_dict_annotated_class(obj: O, cls: type, fn_transform):
+def _items_from_dict_annotated_class(obj: O, cls: type, opts: Options):
     annotations = get_type_hints(cls)
 
     def transform_field(field_dic, field_name):
-        return fn_transform(field_dic, annotations.get(field_name))
+        return AutoDict.from_dict(field_dic, annotations.get(field_name), opts)
 
     return stable_map(obj, transform_field)
 
 
-def _items_from_dict_generic_non_collection(obj: O, cls: type, fn_transform):
+def _items_from_dict_generic_non_collection(obj: O, cls: type, opts: Options):
     if is_generic_union(cls):
         cand_classes = inspect_generic_templ_args(cls, defaults=(Any,))
         cand_objects = dict()
@@ -324,7 +313,7 @@ def _items_from_dict_generic_non_collection(obj: O, cls: type, fn_transform):
 
             # noinspection PyBroadException
             try:
-                obj = fn_transform(obj, cand_cls)
+                obj = AutoDict.from_dict(obj, cand_cls, opts)
                 cand_objects[cand_cls] = obj
             except Exception:
                 continue
@@ -342,25 +331,27 @@ def _items_from_dict_generic_non_collection(obj: O, cls: type, fn_transform):
     return obj
 
 
-def _items_from_dict_generic_collection(obj: O, cls: type, fn_transform):
+def _items_from_dict_generic_collection(obj: O, cls: type, opts: Options):
     # infer item type from template args of typing._GenericAlias
     data_cls = inspect_generic_origin(cls)
 
     if issubclass(data_cls, Mapping):
         key_cls, val_cls = inspect_generic_templ_args(cls, defaults=(Any, Any))
         data_cls = mapping_builder(data_cls)
-        return data_cls((fn_transform(key, key_cls), fn_transform(val, val_cls))
+        return data_cls((AutoDict.from_dict(key, key_cls, opts),
+                         AutoDict.from_dict(val, val_cls, opts))
                         for key, val in obj.items())
 
     if issubclass(data_cls, tuple):
         item_classes = inspect_generic_templ_args(cls, defaults=(Any, ...))
         if len(item_classes) == 2 and item_classes[-1] is ...:
             item_classes = (item_classes[0],) * len(obj)
-        return data_cls(fn_transform(item, item_cls) for item, item_cls in
-                        zip(obj, item_classes))
+        return data_cls(AutoDict.from_dict(item, item_cls, opts)
+                        for item, item_cls in zip(obj, item_classes))
 
     if issubclass(data_cls, (list, set, frozenset)):
         item_cls, = inspect_generic_templ_args(cls, defaults=(Any,))
-        return data_cls(fn_transform(item, item_cls) for item in obj)
+        return data_cls(AutoDict.from_dict(item, item_cls, opts)
+                        for item in obj)
 
     raise ValueError(f'Unhandled generic collection type: {data_cls}')

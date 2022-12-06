@@ -9,6 +9,7 @@ import pytest
 from autodict import AutoDict, dictable
 from autodict.autodict import Dictable, from_dictable, to_dictable
 from autodict.errors import UnableFromDict, UnableToDict
+from autodict.options import Options
 from conftest import support_literals
 
 
@@ -285,9 +286,9 @@ class DataclassWithField:
         self.post_init_value = self.default_value + init_variable
 
 
-GoodCase = namedtuple('GoodCase', 'ins,obj,with_cls,strict,name')
+GoodCase = namedtuple('GoodCase', 'ins,obj,opts,name')
 
-BadCase = namedtuple('BadCase', 'ins,obj,with_cls,strict,exc,raises,name')
+BadCase = namedtuple('BadCase', 'ins,obj,cls,opts,exc,raises,name')
 
 
 def generate_good_cases() -> List[GoodCase]:
@@ -296,58 +297,50 @@ def generate_good_cases() -> List[GoodCase]:
             name='with embedded class info',
             ins=Normal(str_value='limo', int_value=10),
             obj={'str_value': 'limo', 'int_value': 10, '@': 'Normal', },
-            with_cls=True,
-            strict=True,
+            opts=Options(with_cls=True, strict=True),
         ),
         GoodCase(
             name='without embedded class info',
             ins=Normal(str_value='limo', int_value=10),
             obj={'str_value': 'limo', 'int_value': 10, },
-            with_cls=False,
-            strict=True,
+            opts=Options(with_cls=False, strict=True),
         ),
         GoodCase(
             name='with embedded class info but customized name',
             ins=CustomName(str_value='limo', int_value=10),
             obj={'str_value': 'limo', 'int_value': 10, '@': 'SomeA', },
-            with_cls=True,
-            strict=True,
+            opts=Options(with_cls=True, strict=True),
         ),
         GoodCase(
             name='allow un-dictable without embedding class info',
             ins=Unregistered(str_value='limo', int_value=10),
             obj=Unregistered(str_value='limo', int_value=10),
-            with_cls=False,
-            strict=False,
+            opts=Options(with_cls=False, strict=False),
         ),
         GoodCase(
             name='allow un-dictable with embedded class info',
             ins={'str_value': 'limo', 'int_value': 10, '@': 'Unregistered'},
             obj={'str_value': 'limo', 'int_value': 10, '@': 'Unregistered'},
-            with_cls=True,
-            strict=False,
+            opts=Options(with_cls=True, strict=False),
         ),
         GoodCase(
             name='when target is a dict itself',
             ins={'str_value': 'limo', 'int_value': 10},
             obj={'str_value': 'limo', 'int_value': 10},
-            with_cls=True,
-            strict=True,
+            opts=Options(with_cls=True, strict=True),
         ),
         GoodCase(
             name='when has incomplete constructor',
             ins=WithIncompleteConstructor(int_value1=1, int_value2=2),
             obj={'int_value1': 1, 'int_value2': 2, 'int_value3': 3},
-            with_cls=False,
-            strict=True,
+            opts=Options(with_cls=False, strict=True),
         ),
         GoodCase(
             name='when has complex constructor',
             ins=WithComplexConstructor(1, 2, 3, 4, 5, e=6, f=7, g=8, h=9, i=0),
             obj={'a': 1, 'b': 2, 'c': 3, 'd': (4, 5), 'e': 6, 'f': 7,
                  'g': {'g': 8, 'h': 9, 'i': 0}},
-            with_cls=False,
-            strict=True,
+            opts=Options(with_cls=False, strict=True),
         ),
         GoodCase(
             name='when has hidden fields while constructor has no arg',
@@ -355,8 +348,7 @@ def generate_good_cases() -> List[GoodCase]:
             obj={'_protected_value': 'limo',
                  '_WithEmptyConstructor__private_value': 20,
                  '@': 'WithEmptyConstructor'},
-            with_cls=True,
-            strict=True,
+            opts=Options(with_cls=True, strict=True),
         ),
         GoodCase(
             name='when has hidden fields while constructor has args',
@@ -364,8 +356,7 @@ def generate_good_cases() -> List[GoodCase]:
             obj={'_protected_value': 'limo',
                  '_WithHiddenMember__private_value': 20,
                  '@': 'WithHiddenMember'},
-            with_cls=True,
-            strict=True,
+            opts=Options(with_cls=True, strict=True),
         ),
         GoodCase(
             name='when has inherited hidden fields while constructor has args',
@@ -373,8 +364,7 @@ def generate_good_cases() -> List[GoodCase]:
             obj={'_protected_value': 'limo',
                  '_WithHiddenMember__private_value': 20,
                  '@': 'WithInheritedHiddenMember'},
-            with_cls=True,
-            strict=True,
+            opts=Options(with_cls=True, strict=True),
         ),
         GoodCase(
             name='nested dictable with class annotation',
@@ -383,8 +373,7 @@ def generate_good_cases() -> List[GoodCase]:
             obj={'a': {'str_value': 'limo', 'int_value': 10, '@': 'Normal'},
                  'count': 20,
                  '@': 'NestDictable'},
-            with_cls=True,
-            strict=True,
+            opts=Options(with_cls=True, strict=True),
         ),
         GoodCase(
             name='nested dictable with generic list',
@@ -398,37 +387,32 @@ def generate_good_cases() -> List[GoodCase]:
                                    'str_value': 'limo'},
                              'count': 3}],
                  'count': 4},
-            with_cls=True,
-            strict=False,
+            opts=Options(with_cls=True, strict=False),
         ),
         GoodCase(
             name='nested dictable with tuple',
             ins=AnnotatedTuple(value=(1, 'limo')),
             obj={'@': 'AnnotatedTuple', 'value': (1, 'limo')},
-            with_cls=True,
-            strict=True,
+            opts=Options(with_cls=True, strict=True),
         ),
         GoodCase(
             name='nested dictable with generic union - 1',
             ins=AnnotatedUnion(union_value='string value'),
             obj={'union_value': 'string value'},
-            with_cls=False,
-            strict=False,
+            opts=Options(with_cls=False, strict=False),
         ),
         GoodCase(
             name='nested dictable with generic union - 2',
             ins=AnnotatedUnion(union_value=Normal(str_value='o', int_value=0)),
             obj={'union_value': {'str_value': 'o',
                                  'int_value': 0}},
-            with_cls=False,
-            strict=False,
+            opts=Options(with_cls=False, strict=False),
         ),
         GoodCase(
             name='nested dictable with generic union - 3',
             ins=AnnotatedUnion(union_value=['string', 'value']),
             obj={'union_value': ['string', 'value']},
-            with_cls=False,
-            strict=False,
+            opts=Options(with_cls=False, strict=False),
         ),
         GoodCase(
             name='nested dictable with generic list union',
@@ -439,15 +423,13 @@ def generate_good_cases() -> List[GoodCase]:
                            {'str_value': 'o',
                             'int_value': 0},
                            ['string', 'value']]},
-            with_cls=False,
-            strict=False,
+            opts=Options(with_cls=False, strict=False),
         ),
         GoodCase(
             name='nested dictable with generic literal',
             ins=AnnotatedLiteral(value='w+'),
             obj={'value': 'w+'},
-            with_cls=False,
-            strict=False,
+            opts=Options(with_cls=False, strict=False),
         ),
         GoodCase(
             name='nested dictable with class annotation string',
@@ -467,8 +449,7 @@ def generate_good_cases() -> List[GoodCase]:
                                    'str_value': 'limo'},
                              'count': 3}],
                  'count': 4},
-            with_cls=True,
-            strict=False,
+            opts=Options(with_cls=True, strict=False),
         ),
         GoodCase(
             name='allow dictable has a non-dictable field',
@@ -479,8 +460,7 @@ def generate_good_cases() -> List[GoodCase]:
                 'count': 20,
                 '@': 'NestUnDictable'
             },
-            with_cls=True,
-            strict=False,
+            opts=Options(with_cls=True, strict=False),
         ),
         GoodCase(
             name='allow non-dictable has a dictable field',
@@ -488,8 +468,7 @@ def generate_good_cases() -> List[GoodCase]:
                                count=2),
             obj=UnDictableNest(a=Normal(str_value='limo', int_value=10),
                                count=2),
-            with_cls=True,
-            strict=False,
+            opts=Options(with_cls=True, strict=False),
         ),
         GoodCase(
             name='nested dictable with special std types',
@@ -502,24 +481,21 @@ def generate_good_cases() -> List[GoodCase]:
                      'value': Color.Red.value,
                      'name': Color.Red.name
                  }},
-            with_cls=True,
-            strict=False,
+            opts=Options(with_cls=True, strict=False),
         ),
         GoodCase(
             name='native support to dataclass',
             ins=NativeDataclass(str_value='limo', list_value=[10, 20]),
             obj={'str_value': 'limo',
                  'list_value': [10, 20]},
-            with_cls=False,
-            strict=True,
+            opts=Options(with_cls=False, strict=True),
         ),
         GoodCase(
             name='dataclass with fields',
             ins=DataclassWithField(init_value='A', init_variable=10,
                                    default_value=20),
             obj={'init_value': 'A', 'post_init_value': 30, 'default_value': 20},
-            with_cls=False,
-            strict=True,
+            opts=Options(with_cls=False, strict=True),
         )
     ]
 
@@ -530,8 +506,8 @@ def generate_bad_cases():
             name='unable to_dict in strict mode',
             ins=Unregistered(str_value='limo', int_value=10),
             obj=None,
-            with_cls=True,
-            strict=True,
+            cls=None,
+            opts=Options(with_cls=True, strict=True),
             exc=UnableToDict,
             raises=dict(match='.*Unregistered.*'),
         ),
@@ -539,8 +515,8 @@ def generate_bad_cases():
             name='unable from_dict in strict mode without embedded class info',
             ins=None,
             obj={'str_value': 'limo', 'int_value': 10},
-            with_cls=Unregistered,
-            strict=True,
+            cls=Unregistered,
+            opts=Options(strict=True),
             exc=UnableFromDict,
             raises=dict(match='.*Unregistered.*'),
         ),
@@ -548,8 +524,8 @@ def generate_bad_cases():
             name='unable from_dict in strict mode with embedded class info',
             ins=None,
             obj={'str_value': 'limo', 'int_value': 10, '@': 'Unregistered'},
-            with_cls=None,
-            strict=True,
+            cls=None,
+            opts=Options(strict=True),
             exc=UnableFromDict,
             raises=dict(match='.*Unregistered.*'),
         ),
@@ -558,8 +534,8 @@ def generate_bad_cases():
             ins=NestUnDictable(Unregistered(str_value='limo', int_value=10),
                                count=20),
             obj=None,
-            with_cls=True,
-            strict=True,
+            cls=None,
+            opts=Options(with_cls=True, strict=True),
             exc=UnableToDict,
             raises=dict(match='.*Unregistered.*'),
         ),
@@ -570,8 +546,8 @@ def generate_bad_cases():
                 'a': {'str_value': 'limo', 'int_value': 10},
                 'count': 10,
             },
-            with_cls=NestUnDictable,
-            strict=True,
+            cls=NestUnDictable,
+            opts=Options(strict=True),
             exc=UnableFromDict,
             raises=dict(match='.*Unregistered.*'),
         ),
@@ -584,8 +560,8 @@ def generate_bad_cases():
                 'count': 10,
                 '@': 'NestUnDictable'
             },
-            with_cls=None,
-            strict=True,
+            cls=None,
+            opts=Options(strict=True),
             exc=UnableFromDict,
             raises=dict(match='.*Unregistered.*'),
         ),
@@ -594,8 +570,8 @@ def generate_bad_cases():
             ins=UnDictableNest(Normal(str_value='limo', int_value=10),
                                count=20),
             obj=None,
-            with_cls=True,
-            strict=True,
+            cls=None,
+            opts=Options(with_cls=True, strict=True),
             exc=UnableToDict,
             raises=dict(match='.*UnDictableNest.*'),
         ),
@@ -606,8 +582,8 @@ def generate_bad_cases():
                 'a': {'str_value': 'limo', 'int_value': 10},
                 'count': 10,
             },
-            with_cls=UnDictableNest,
-            strict=True,
+            cls=UnDictableNest,
+            opts=Options(strict=True),
             exc=UnableFromDict,
             raises=dict(match='.*UnDictableNest.*'),
         ),
@@ -619,8 +595,8 @@ def generate_bad_cases():
                 'count': 10,
                 '@': 'UnDictableNest'
             },
-            with_cls=None,
-            strict=True,
+            cls=None,
+            opts=Options(strict=True),
             exc=UnableFromDict,
             raises=dict(match='.*UnDictableNest.*'),
         ),
@@ -634,22 +610,21 @@ def case_name(case):
 class TestAnnotate:
     @pytest.mark.parametrize('case', generate_good_cases(), ids=case_name)
     def test_to_dict(self, case: GoodCase):
-        assert AutoDict.to_dict(case.ins, with_cls=case.with_cls,
-                                strict=case.strict) == case.obj
+        assert AutoDict.to_dict(case.ins, case.opts) == case.obj
 
     @pytest.mark.parametrize('case', generate_good_cases(), ids=case_name)
     def test_from_dict(self, case: GoodCase):
-        cls = None if case.with_cls else type(case.ins)
-        output_obj = AutoDict.from_dict(case.obj, cls=cls, strict=case.strict)
+        cls = None if case.opts.with_cls else type(case.ins)
+        output_obj = AutoDict.from_dict(case.obj, cls, case.opts)
         assert output_obj == case.ins
 
     @pytest.mark.parametrize('case', generate_bad_cases(), ids=case_name)
     def test_failed_to_or_from_dict(self, case: BadCase):
         with pytest.raises(case.exc, **case.raises):
             if case.obj is None:
-                AutoDict.to_dict(case.ins, case.with_cls, strict=case.strict)
+                AutoDict.to_dict(case.ins, case.opts)
             elif case.ins is None:
-                AutoDict.from_dict(case.obj, case.with_cls, strict=case.strict)
+                AutoDict.from_dict(case.obj, case.cls, case.opts)
 
     @to_dictable
     class PartialTo:
@@ -743,7 +718,7 @@ class TestDerive:
             self.int_value = int_value
 
         def __eq__(self, other):
-            return isinstance(other, TestDerive.General) and \
+            return isinstance(other, TestDerive.CustomName) and \
                 self.str_value == other.str_value and \
                 self.int_value == other.int_value
 
@@ -769,13 +744,13 @@ class TestDerive:
                 self.int_value == other.int_value
 
         @classmethod
-        def _from_dict(cls, obj: dict) -> 'TestDerive.OverrideBoth':
+        def _from_dict(cls, obj: dict, _: Options) -> 'TestDerive.OverrideBoth':
             g = TestDerive.OverrideBoth()
             g.str_value = obj['str_value']
             g.int_value = obj['int_value']
             return g
 
-        def _to_dict(self) -> dict:
+        def _to_dict(self, _: Options) -> dict:
             return {
                 'str_value': self.str_value,
                 'int_value': self.int_value
@@ -806,13 +781,13 @@ class TestDerive:
                 self.count == other.count
 
         @classmethod
-        def _from_dict(cls, obj: dict) -> 'TestDerive.NestedOverride':
+        def _from_dict(cls, obj: dict, _) -> 'TestDerive.NestedOverride':
             h = TestDerive.NestedOverride()
             h.g = obj['g']
             h.count = obj['count']
             return h
 
-        def _to_dict(self) -> dict:
+        def _to_dict(self, _: Options) -> dict:
             return {
                 'g': self.g,
                 'count': self.count
