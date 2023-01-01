@@ -28,7 +28,7 @@ classifiers = [
     'Programming Language :: Python :: 3.11',
 ]
 dependencies = [
-    "registry @ git+https://github.com/limoiie/registry.git@v0.0.5",
+    "registry @ git+https://github.com/limoiie/registry.git@v0.0.6",
 ]
 
 [project.optional-dependencies]
