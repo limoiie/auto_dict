@@ -10,8 +10,7 @@ try:
     from typing import final
 
 except ImportError:
-    def final(obj: Any) -> Any:
-        return obj
+    from typing_extensions import final
 
 from registry import Registry
 
