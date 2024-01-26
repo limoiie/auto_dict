@@ -26,6 +26,7 @@ except ImportError:
 
 from registry import Registry
 
+from autodict import namedtuple as namedtuple_ext
 from autodict.errors import UnableFromDict, UnableToDict
 from autodict.mapping_factory import mapping_builder
 from autodict.options import Options
@@ -72,18 +73,11 @@ def dictable(
     """
 
     def inner(_cls):
-        if dataclasses.is_dataclass(_cls):
-            to_dict_ = to_dict or predefined.dataclass_to_dict
-            from_dict_ = from_dict or predefined.dataclass_from_dict
-        elif issubclass(_cls, enum.Enum):
-            to_dict_ = to_dict or predefined.enum_to_dict
-            from_dict_ = from_dict or predefined.enum_from_dict
-        else:
-            to_dict_ = to_dict or predefined.default_to_dict
-            from_dict_ = from_dict or predefined.default_from_dict
-
-        name_ = name or _cls.__name__
-        AutoDict.register(name=name_, to_dict=to_dict_, from_dict=from_dict_)(_cls)
+        AutoDict.register(
+            name=name or _cls.__name__,
+            to_dict=to_dict or predefined.to_dict_of(_cls),
+            from_dict=from_dict or predefined.from_dict_of(_cls),
+        )(_cls)
         return _cls
 
     return inner(cls) if cls else inner
@@ -210,17 +204,24 @@ class AutoDict(Registry[Meta]):
         cls = type(ins)
         options = options or Options()
 
+        # 1. inheritance
         if issubclass(cls, Dictable):
             # noinspection PyProtectedMember
             obj = ins._to_dict(options)
+        # 2. annotated
         elif AutoDict.registered(cls):
             obj = AutoDict.meta_of(cls).to_dict(ins, options)
-        elif dataclasses.is_dataclass(ins):
+        # 3. native supported
+        elif dataclasses.is_dataclass(cls):
             obj = predefined.dataclass_to_dict(ins, options)
-        elif isinstance(ins, enum.Enum):
+        elif namedtuple_ext.is_namedtuple(cls):
+            obj = predefined.namedtuple_to_dict(ins, options)
+        elif issubclass(cls, enum.Enum):
             obj = predefined.enum_to_dict(ins, options)
+        # 4. builtin or not strict
         elif is_builtin(cls) or not options.strict:
             obj = ins
+        # 5. fallback, raise error
         else:
             raise UnableToDict(cls)
 
@@ -246,20 +247,28 @@ class AutoDict(Registry[Meta]):
         """
         options = options or Options()
         cls = strip_class(obj, cls, options)
+        cls_is_class = cls and inspect.isclass(cls)
 
         if options.recursively:
             obj = _items_from_dict(obj, cls, options)
 
-        if inspect.isclass(cls) and issubclass(cls, Dictable):
+        # 1. inheritance
+        if cls_is_class and issubclass(cls, Dictable):
             ins = cls._from_dict(obj, options)
+        # 2. annotated
         elif AutoDict.registered(cls):
             ins = AutoDict.meta_of(cls).from_dict(cls, obj, options)
+        # 3. native supported
         elif dataclasses.is_dataclass(cls):
             ins = predefined.dataclass_from_dict(cls, obj, options)
-        elif inspect.isclass(cls) and issubclass(cls, enum.Enum):
+        elif namedtuple_ext.is_namedtuple(cls):
+            ins = predefined.namedtuple_from_dict(cls, obj, options)
+        elif cls_is_class and issubclass(cls, enum.Enum):
             ins = predefined.enum_from_dict(cls, obj, options)
+        # 4. builtin or not strict
         elif cls is None or is_builtin(cls) or not options.strict:
             ins = obj
+        # 5. fallback, raise error
         else:
             raise UnableFromDict(cls)
 
@@ -282,7 +291,7 @@ def embed_class(cls: Type[T], obj: O, options: Options) -> O:
             if AutoDict.registered(cls):
                 obj[AutoDict.CLS_ANNO_KEY] = AutoDict.meta_of(cls).name
             # if the cls is native supported (dataclass or enum), use the class name
-            elif dataclasses.is_dataclass(cls) or issubclass(cls, enum.Enum):
+            elif predefined.is_native_supported(cls):
                 obj[AutoDict.CLS_ANNO_KEY] = cls.__name__
             # otherwise, raise the error
             else:
@@ -321,19 +330,44 @@ def strip_class(
 
 
 def _items_to_dict(obj: O, options: Options):
+    """
+    Transform the items of a dict to dicts.
+
+    :param obj: The dict.
+    :param options: Options that controls the transform behaviors.
+    :return: The transformed dict whose items have been transformed to dicts.
+    """
     return stable_map(obj, lambda v, _: AutoDict.to_dict(v, options))
 
 
 def _items_from_dict(obj: O, cls: Optional[type], options: Options):
+    """
+    Transform the items of a dict to instances according to annotations.
+
+    :param obj: The dict.
+    :param cls: The class that is going to be instantiated against. If
+    :param options: Options that controls the transform behaviors.
+    :return: The transformed dict whose items have been instantiated.
+    """
+    # The type annotations of a dataclass
+    # is slightly different from a normal annotated class:
+    # if the field type is a dataclass.InitVar, we need to extract the real type from it
     if dataclasses.is_dataclass(cls):
         return _items_from_dict_dataclass(obj, cls, options)
 
+    # The type annotations of a namedtuple is just like a normal annotated class
+    if namedtuple_ext.is_namedtuple(cls):
+        return _items_from_dict_namedtuple(obj, cls, options)
+
+    # Normally, the field types of a class is annotated in its __annotations__.
     if is_annotated_class(cls):
         return _items_from_dict_annotated_class(obj, cls, options)
 
+    # If the class is a generic collection, infer the item type from its template args
     if is_generic_collection(cls):  # List, Set, Dict, Tuple, Mapping, etc
         return _items_from_dict_generic_collection(obj, cls, options)
 
+    # If the class is a generic non-collection, infer the item type
     if is_generic(cls):  # Union including Optional,
         return _items_from_dict_generic_non_collection(obj, cls, options)
 
@@ -341,6 +375,20 @@ def _items_from_dict(obj: O, cls: Optional[type], options: Options):
 
 
 def _items_from_dict_dataclass(obj: O, cls: type, opts: Options):
+    """
+    Transform the items of a dict from a dataclass
+    to instances according to the annotations specified in the definition of dataclass.
+
+    This method is similar to the handling with annotated class,
+    except that the field type of a dataclass may be a dataclass.InitVar,
+    which is a wrapper of the real type.
+    For that case, we need to extract the real type from it.
+
+    :param obj: The dict.
+    :param cls: The dataclass that is going to be instantiated against.
+    :param opts: Options that controls the transform behaviors.
+    :return: The transformed dict whose items have been instantiated.
+    """
     annotations = get_type_hints(cls)
 
     def transform_field(field_dic, field_name):
@@ -349,6 +397,34 @@ def _items_from_dict_dataclass(obj: O, cls: type, opts: Options):
             field_cls = field_cls.type
 
         return AutoDict.from_dict(field_dic, field_cls, opts)
+
+    return stable_map(obj, transform_field)
+
+
+def _items_from_dict_namedtuple(obj: O, cls: type, opts: Options):
+    """
+    Transform the items of a dict from a namedtuple
+    to instances according to the annotations specified in the definition of namedtuple.
+
+    This method is similar to the handling with annotated class,
+    except that when to_dict with with_cls being False,
+    the atomic value `obj` will a list instead of a dict.
+    In that case, we need to deal with adaption.
+
+    :param obj: The dict.
+    :param cls: The namedtuple that is going to be instantiated against.
+    :param opts: Options that controls the transform behaviors.
+    :return: The transformed dict whose items have been instantiated.
+    """
+    annotations = get_type_hints(cls)
+    if isinstance(obj, list):
+        annotations = dict(
+            (i, annotations.get(field))
+            for i, field in enumerate(getattr(cls, '_fields'))
+        )
+
+    def transform_field(field_dic, field_name):
+        return AutoDict.from_dict(field_dic, annotations.get(field_name), opts)
 
     return stable_map(obj, transform_field)
 

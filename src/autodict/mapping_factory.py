@@ -16,6 +16,7 @@ class MappingFactory(Registry[_Meta]):
     This factory provides a unified interface to build mapping objects
     from a dict or/and an iterable of key-value pairs.
     """
+
     @staticmethod
     def build(mapping_cls: Type[M], data=None, **kwargs) -> M:
         """

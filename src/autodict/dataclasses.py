@@ -39,17 +39,3 @@ def default_value(field: Field) -> Any:
         return None
 
     raise RuntimeError(f"Default value not found for field: {field}")
-
-
-def instantiate(cls: Type[T], init_values: dict, post_init_values: dict) -> T:
-    """
-    Instantiate a dataclass.
-
-    :param cls: The dataclass.
-    :param init_values: Initial values required by dataclass constructor.
-    :param post_init_values: The values not required during dataclass construction.
-    :return: The instantiated dataclass instance.
-    """
-    obj = cls(**init_values)
-    obj.__dict__.update(**post_init_values)
-    return obj

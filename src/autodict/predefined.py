@@ -2,9 +2,10 @@ import copy
 import dataclasses
 import enum
 import inspect
-from typing import Any, Type
+from typing import Any, Callable, Type
 
 import autodict.dataclasses as dataclasses_ext
+import autodict.namedtuple as namedtuple_ext
 from autodict.errors import UnableFromDict, UnableToDict
 from autodict.options import Options
 from autodict.types import O, T, strip_hidden_member_prefix
@@ -19,6 +20,82 @@ __all__ = [
     "unable_to_dict",
     "unable_from_dict",
 ]
+
+
+def is_native_supported(obj: Any):
+    cls = obj if isinstance(obj, type) else type(obj)
+    return (
+        dataclasses.is_dataclass(cls)
+        or namedtuple_ext.is_namedtuple(cls)
+        or issubclass(cls, enum.Enum)
+    )
+
+
+def to_dict_of(cls: Type[T]) -> Callable[[T, Options], O]:
+    if dataclasses.is_dataclass(cls):
+        return dataclass_to_dict
+
+    if namedtuple_ext.is_namedtuple(cls):
+        return namedtuple_to_dict
+
+    if isinstance(cls, type) and issubclass(cls, enum.Enum):
+        return enum_to_dict
+
+    return default_to_dict
+
+
+def from_dict_of(cls: Type[T]) -> Callable[[O, Options], T]:
+    if dataclasses.is_dataclass(cls):
+        return dataclass_from_dict
+
+    if namedtuple_ext.is_namedtuple(cls):
+        return namedtuple_from_dict
+
+    if isinstance(cls, type) and issubclass(cls, enum.Enum):
+        return enum_from_dict
+
+    return default_from_dict
+
+
+def native_to_dict(ins: Any, options: Options) -> O:
+    """
+    Transform a native instance to a dict.
+
+    :param ins: The instance to be transformed.
+    :param options: The transform options.
+    :return: The dict representation of the instance.
+    """
+    if dataclasses.is_dataclass(ins):
+        return dataclass_to_dict(ins, options)
+
+    if namedtuple_ext.is_namedtuple(ins):
+        return namedtuple_to_dict(ins, options)
+
+    if isinstance(ins, enum.Enum):
+        return enum_to_dict(ins, options)
+
+    raise RuntimeError(f"Unsupported native type: {type(ins)}")
+
+
+def native_from_dict(cls: Type[T], obj: O, options: Options) -> T:
+    """
+    Transform a dict to a native instance.
+
+    :param cls: The class of the instance to be transformed.
+    :param obj: The dict to be transformed.
+    :param options: The transform options.
+    :return: The instance of the given class.
+    """
+    if dataclasses.is_dataclass(cls):
+        return dataclass_from_dict(cls, obj, options)
+
+    if namedtuple_ext.is_namedtuple(cls):
+        return namedtuple_from_dict(cls, obj, options)
+
+    if isinstance(cls, type) and issubclass(cls, enum.Enum):
+        return enum_from_dict(cls, obj, options)
+
+    raise RuntimeError(f"Unsupported native type: {cls}")
 
 
 def default_to_dict(ins: Any, _option: Options) -> O:
@@ -176,7 +253,48 @@ def dataclass_from_dict(cls: Type[T], obj: dict, _options: Options) -> T:
         else:
             post_init_values[field.name] = field_value
 
-    return dataclasses_ext.instantiate(cls, init_values, post_init_values)
+    instance = cls(**init_values)
+    instance.__dict__.update(**post_init_values)
+    return instance
+
+
+def namedtuple_to_dict(ins: tuple, options: Options) -> O:
+    """
+    Transform a namedtuple to an atomic value.
+
+    If `options.with_cls` is True, the result will be a dict.
+    Otherwise, the result will be a list.
+
+    :param ins: The namedtuple instance.
+    :param options: The transform options.
+    :return: The dict or list representation of the namedtuple instance.
+    """
+    if options.with_cls:
+        return dict(getattr(ins, "_asdict")())
+    return list(ins)
+
+
+def namedtuple_from_dict(cls: Type[T], obj: dict, _options: Options) -> T:
+    """
+    Transform a dict to a namedtuple instance.
+
+    :param cls: The namedtuple class.
+    :param obj: The dict to be transformed.
+    :param _options: The options for the transform.
+    :return: The namedtuple instance.
+    """
+    if isinstance(obj, dict):
+        init_values = []
+        for field in namedtuple_ext.instance_fields(cls):
+            init_values.append(
+                obj[field.name] if field.name in obj else field.get_default()
+            )
+
+    else:
+        init_values = list(obj)
+
+    instance = cls(*init_values)
+    return instance
 
 
 def unable_to_dict(ins: Any, _options: Options):

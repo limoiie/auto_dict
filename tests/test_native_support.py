@@ -1,7 +1,7 @@
 import dataclasses
 import enum
 from collections import namedtuple
-from typing import List
+from typing import List, NamedTuple
 
 import pytest
 
@@ -38,6 +38,23 @@ class DataclassWithField:
 class DataclassWithEnumAndDataclassFields:
     value: NativeDataclass
     color: Color
+
+
+NamedTupleWithUntypedFields = namedtuple(
+    "NamedTupleWithUntypedFields",
+    "str_value,int_value",
+    defaults=[10],
+)
+
+NamedTupleWithTypedFields = NamedTuple(
+    "NamedTupleWithTypedFields",
+    [("str_value", str), ("int_value", int)],
+)
+
+NamedTupleWithDataclassFields = NamedTuple(
+    "NamedTupleWithDataclassFields",
+    [("value", NativeDataclass), ("color", Color)],
+)
 
 
 def generate_good_cases():
@@ -99,6 +116,65 @@ def generate_good_cases():
                 },
                 "color": {"name": "Black", "value": 1, "@": "Color"},
                 "@": "DataclassWithEnumAndDataclassFields",
+            },
+            opts=Options(with_cls=True, strict=True),
+        ),
+        GoodCase(
+            name="namedtuple with untyped fields",
+            ins=NamedTupleWithUntypedFields("limo", 10),
+            obj=["limo", 10],
+            opts=Options(with_cls=False, strict=True),
+        ),
+        GoodCase(
+            name="namedtuple with untyped fields - autodict with class",
+            ins=NamedTupleWithUntypedFields("limo", 10),
+            obj={
+                "str_value": "limo",
+                "int_value": 10,
+                "@": "NamedTupleWithUntypedFields",
+            },
+            opts=Options(with_cls=True, strict=True),
+        ),
+        GoodCase(
+            name="namedtuple with typed fields",
+            ins=NamedTupleWithTypedFields("limo", 10),
+            obj=["limo", 10],
+            opts=Options(with_cls=False, strict=True),
+        ),
+        GoodCase(
+            name="namedtuple with typed fields - autodict with class",
+            ins=NamedTupleWithTypedFields("limo", 10),
+            obj={
+                "str_value": "limo",
+                "int_value": 10,
+                "@": "NamedTupleWithTypedFields",
+            },
+            opts=Options(with_cls=True, strict=True),
+        ),
+        GoodCase(
+            name="namedtuple with dataclass fields",
+            ins=NamedTupleWithDataclassFields(
+                NativeDataclass("str_value", [1, 2, 3]), Color.Black
+            ),
+            obj=[
+                {"str_value": "str_value", "list_value": [1, 2, 3]},
+                {"name": "Black", "value": 1},
+            ],
+            opts=Options(with_cls=False, strict=True),
+        ),
+        GoodCase(
+            name="namedtuple with dataclass fields - autodict with class",
+            ins=NamedTupleWithDataclassFields(
+                NativeDataclass("str_value", [1, 2, 3]), Color.Black
+            ),
+            obj={
+                "value": {
+                    "str_value": "str_value",
+                    "list_value": [1, 2, 3],
+                    "@": "NativeDataclass",
+                },
+                "color": {"name": "Black", "value": 1, "@": "Color"},
+                "@": "NamedTupleWithDataclassFields",
             },
             opts=Options(with_cls=True, strict=True),
         ),
