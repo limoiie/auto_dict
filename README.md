@@ -16,7 +16,7 @@ such as JSON or YAML, for Python objects by converting them to/from dictionaries
 Run the following command in a shell:
 
 ```shell
-python -m pip install git+https://github.com/limoiie/autodict.git@v0.0.4
+python -m pip install git+https://github.com/limoiie/autodict.git@v0.0.9
 ```
 
 ### Introduction
