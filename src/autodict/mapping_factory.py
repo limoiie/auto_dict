@@ -10,8 +10,23 @@ class _Meta:
 
 
 class MappingFactory(Registry[_Meta]):
+    """
+    A factory to build mapping objects.
+
+    This factory provides a unified interface to build mapping objects
+    from a dict or/and an iterable of key-value pairs.
+    """
     @staticmethod
     def build(mapping_cls: Type[M], data=None, **kwargs) -> M:
+        """
+        Build a mapping object.
+
+        :param mapping_cls: The underlying mapping class.
+        :param data: The data to be used to construct the mapping object.
+            Can be a dict or/and an iterable of key-value pairs.
+        :param kwargs: The data to be used to construct the mapping object.
+        :return:
+        """
         data = data or dict()
 
         if isinstance(data, dict):
@@ -24,6 +39,15 @@ class MappingFactory(Registry[_Meta]):
 
     @staticmethod
     def builder(mapping_cls: Type[M]) -> Callable[[Iterable], M]:
+        """
+        Create a builder for building a mapping object.
+
+        :param mapping_cls: The underlying mapping class.
+            This class must either be registered in the factory or
+            originally accepts a dict or/and an iterable of key-value pairs
+            as its constructor argument.
+        :return: A builder for building a mapping object.
+        """
         try:
             meta = MappingFactory.meta_of(mapping_cls)
             constructor = meta.fn_construct
@@ -33,9 +57,6 @@ class MappingFactory(Registry[_Meta]):
         return constructor
 
 
-def mapping_factory(mapping_cls: Type[M], data=None, **kwargs) -> M:
-    return MappingFactory.build(mapping_cls, data, **kwargs)
+mapping_factory = MappingFactory.build
 
-
-def mapping_builder(mapping_cls: Type[M]) -> Callable[[Iterable], M]:
-    return MappingFactory.builder(mapping_cls)
+mapping_builder = MappingFactory.builder

@@ -22,12 +22,41 @@ __all__ = [
 
 
 def default_to_dict(ins: Any, _option: Options) -> O:
+    """
+    Default to_dict implementation.
+
+    This method transforms any instance to a dict by copying its __dict__.
+    NOTE: this method do NOT transform in a recursive manner.
+
+    :param ins: The instance to be transformed.
+    :param _option: The transform options.
+    :return: The dict representation of the instance.
+    """
     return copy.copy(ins.__dict__)
 
 
 def default_from_dict(cls: Type[T], obj: O, _option: Options) -> T:
+    """
+    Default from_dict implementation.
+
+    This method transforms a dict to an instance of the given class.
+    The instantiation follows the following rules:
+    - if the class has __init__ method, the dict is used to initialize the instance;
+        concretely, any keys in the dict that are also in the __init__ parameter list
+        are used to initialize the instance,
+        and the rest are used to update the instance's __dict__;
+    _ otherwise, the instance is created without parameters and
+        the dict is used to update the instance's __dict__.
+    NOTE: this method do NOT transform in a recursive manner.
+
+    :param cls: The class of the instance to be transformed.
+    :param obj: The dict to be transformed.
+    :param _option: The transform options.
+    :return: The instance of the given class.
+    """
     fn_init = getattr(cls, "__init__", None)
     if fn_init:
+        # candidate parameter name-value pairs by processing the given dict
         cand_param_values = {
             strip_hidden_member_prefix(cls, field_name): (field_name, field_value)
             for field_name, field_value in obj.items()
@@ -77,10 +106,20 @@ def default_from_dict(cls: Type[T], obj: O, _option: Options) -> T:
 
 
 def enum_to_dict(ins: enum.Enum, _options: Options) -> O:
+    """
+    Transform an enum instance to a dict.
+
+    NOTE: this method do NOT transform in a recursive manner.
+    """
     return dict(value=ins.value, name=ins.name)
 
 
 def enum_from_dict(cls: Type[T], obj: dict, _options: Options) -> T:
+    """
+    Transform a dict to an enum instance.
+
+    NOTE: this method do NOT transform in a recursive manner.
+    """
     enum_name = obj["name"]
     enum_value = obj["value"]
 
@@ -93,10 +132,35 @@ def enum_from_dict(cls: Type[T], obj: dict, _options: Options) -> T:
 
 
 def dataclass_to_dict(ins: Any, _options: Options) -> O:
+    """
+    Transform a dataclass to a dict.
+
+    This method respects the dataclass field definition.
+    NOTE: this method do NOT transform in a recursive manner.
+
+    This method is preferred rather than `dataclasses.asdict` because:
+    - it transforms the dataclass fields with no respect to autodict;
+    - here we just want to transform the dataclass fields in a non-recursive manner.
+
+    :param ins: A dataclass instance
+    :param _options: The options for the transform.
+    :return: The dict representation of the dataclass instance.
+    """
     return dict((f.name, getattr(ins, f.name)) for f in dataclasses.fields(ins))
 
 
 def dataclass_from_dict(cls: Type[T], obj: dict, _options: Options) -> T:
+    """
+    Transform a dict to a dataclass instance.
+
+    This method respects the dataclass field definition.
+    NOTE: this method do NOT transform in a recursive manner.
+
+    :param cls: The dataclass class.
+    :param obj: The dict to be transformed.
+    :param _options: The options for the transform.
+    :return: The dataclass instance.
+    """
     init_values = {}
     post_init_values = {}
 

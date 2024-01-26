@@ -58,6 +58,17 @@ def is_namedtuple(cls):
 
 
 def strip_hidden_member_prefix(cls: type, key: str):
+    """
+    Demangle the private field name.
+
+    A private field is declared being prefixed with a single underscore.
+    It will be mangled to _<class_name>__<field_name> during runtime
+    for preventing the access.
+
+    :param cls: The class that declares the field.
+    :param key: The field name.
+    :return: The declared field name.
+    """
     if not key.startswith("_"):
         return key
 
