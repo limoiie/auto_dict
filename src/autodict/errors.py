@@ -11,11 +11,9 @@ class AutoDictError(Exception):
 
 class UnableToDict(AutoDictError):
     def __init__(self, cls: Optional[type]):
-        super().__init__(
-            f'{cls}, please mark it as to_dictable.')
+        super().__init__(f"{cls}, please mark it as to_dictable.")
 
 
 class UnableFromDict(AutoDictError):
     def __init__(self, cls: Optional[type]):
-        super().__init__(
-            f'{cls}, please mark it as from_dictable.')
+        super().__init__(f"{cls}, please mark it as from_dictable.")

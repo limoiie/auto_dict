@@ -32,6 +32,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-tests = ["pytest"]
+tests = ["pytest", "black", "pyright", "pylint"]
 
 [tool.setuptools_scm]

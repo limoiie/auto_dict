@@ -1,13 +1,16 @@
 from typing import Any, Callable, Collection, Mapping, TypeVar, Union
 
-T = TypeVar('T')
-M = TypeVar('M', bound=Mapping)
-O = TypeVar('O', bool, int, float, str, list, set, tuple, dict, type(None))
+T = TypeVar("T")
+M = TypeVar("M", bound=Mapping)
+O = TypeVar("O", bool, int, float, str, list, set, tuple, dict, type(None))
 
 
 def is_builtin(cls: type):
-    return hasattr(cls, '__module__') and \
-        cls.__module__ in (object.__module__, 'collections', 'typing')
+    return hasattr(cls, "__module__") and cls.__module__ in (
+        object.__module__,
+        "collections",
+        "typing",
+    )
 
 
 def is_collection(cls: type):
@@ -15,11 +18,11 @@ def is_collection(cls: type):
 
 
 def is_annotated_class(cls: type):
-    return hasattr(cls, '__annotations__')
+    return hasattr(cls, "__annotations__")
 
 
 def is_generic(cls: type):
-    return hasattr(cls, '__origin__')
+    return hasattr(cls, "__origin__")
 
 
 def is_generic_collection(cls: type):
@@ -38,8 +41,7 @@ def is_generic_union(cls):
 
 
 def is_generic_optional(cls):
-    return is_generic_union(cls) and \
-        type(None) in inspect_generic_templ_args(cls)
+    return is_generic_union(cls) and type(None) in inspect_generic_templ_args(cls)
 
 
 def is_generic_literal(cls):
@@ -52,18 +54,18 @@ def is_generic_literal(cls):
 
 
 def is_namedtuple(cls):
-    return issubclass(cls, tuple) and hasattr(cls, '_fields')
+    return issubclass(cls, tuple) and hasattr(cls, "_fields")
 
 
 def strip_hidden_member_prefix(cls: type, key: str):
-    if not key.startswith('_'):
+    if not key.startswith("_"):
         return key
 
-    if '__' in key:
+    if "__" in key:
         # strip private prefix for fields defined in this class
-        prefix = f'_{cls.__name__}__'
+        prefix = f"_{cls.__name__}__"
         if key.startswith(prefix):
-            return key[len(prefix):]
+            return key[len(prefix) :]
 
         # strip private prefix for fields defined in base classes
         for parent_cls in cls.__bases__:
@@ -86,8 +88,9 @@ def stable_map(obj, mapper: Callable[[Any, Any], Any]):
     if issubclass(cls, Mapping):
         from autodict.mapping_factory import mapping_factory
 
-        return mapping_factory(cls, (
-            (key, mapper(item, key)) for key, item in obj.items()))
+        return mapping_factory(
+            cls, ((key, mapper(item, key)) for key, item in obj.items())
+        )
 
     if is_namedtuple(cls):
         return cls(*(mapper(item, i) for i, item in enumerate(obj)))
@@ -99,11 +102,11 @@ def stable_map(obj, mapper: Callable[[Any, Any], Any]):
 
 
 def inspect_generic_templ_args(cls: type, defaults=()):
-    if hasattr(cls, '_special') and cls._special:
+    if hasattr(cls, "_special") and cls._special:
         return defaults
 
-    return getattr(cls, '__args__', None) or defaults
+    return getattr(cls, "__args__", None) or defaults
 
 
 def inspect_generic_origin(cls: type):
-    return getattr(cls, '__extra__', None) or getattr(cls, '__origin__', None)
+    return getattr(cls, "__extra__", None) or getattr(cls, "__origin__", None)

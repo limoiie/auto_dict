@@ -2,9 +2,22 @@ import dataclasses
 import enum
 import inspect
 from dataclasses import is_dataclass
+
 # noinspection PyUnresolvedReferences,PyProtectedMember
-from typing import Any, Callable, ForwardRef, List, Mapping, Optional, Tuple, \
-    Type, TypeVar, Union, _GenericAlias, get_type_hints
+from typing import (
+    Any,
+    Callable,
+    ForwardRef,
+    List,
+    Mapping,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+    _GenericAlias,
+    get_type_hints,
+)
 
 try:
     from typing import final
@@ -17,12 +30,20 @@ from registry import Registry
 from autodict.errors import UnableFromDict, UnableToDict
 from autodict.mapping_factory import mapping_builder
 from autodict.options import Options
-from autodict.predefined import dataclass_from_dict, dataclass_to_dict, \
-    default_from_dict, default_to_dict, enum_from_dict, enum_to_dict, \
-    unable_from_dict, unable_to_dict
-from autodict.types import O, T, inspect_generic_origin, \
-    inspect_generic_templ_args, is_annotated_class, is_builtin, is_generic, \
-    is_generic_collection, is_generic_literal, is_generic_union, stable_map
+from autodict import predefined
+from autodict.types import (
+    O,
+    T,
+    inspect_generic_origin,
+    inspect_generic_templ_args,
+    is_annotated_class,
+    is_builtin,
+    is_generic,
+    is_generic_collection,
+    is_generic_literal,
+    is_generic_union,
+    stable_map,
+)
 
 
 @dataclasses.dataclass
@@ -32,8 +53,9 @@ class Meta:
     from_dict: Optional[Callable[[Type[T], dict, Options], T]] = None
 
 
-def dictable(cls: T = None, name=None, to_dict=None, from_dict=None) \
-        -> Union[T, Callable[[T], T]]:
+def dictable(
+    cls: T = None, name=None, to_dict=None, from_dict=None
+) -> Union[T, Callable[[T], T]]:
     """
     Annotate [Cls] as dictable.
 
@@ -52,25 +74,23 @@ def dictable(cls: T = None, name=None, to_dict=None, from_dict=None) \
 
     def inner(_cls):
         if is_dataclass(_cls):
-            to_dict_ = to_dict or dataclass_to_dict
-            from_dict_ = from_dict or dataclass_from_dict
+            to_dict_ = to_dict or predefined.dataclass_to_dict
+            from_dict_ = from_dict or predefined.dataclass_from_dict
         elif issubclass(_cls, enum.Enum):
-            to_dict_ = to_dict or enum_to_dict
-            from_dict_ = from_dict or enum_from_dict
+            to_dict_ = to_dict or predefined.enum_to_dict
+            from_dict_ = from_dict or predefined.enum_from_dict
         else:
-            to_dict_ = to_dict or default_to_dict
-            from_dict_ = from_dict or default_from_dict
+            to_dict_ = to_dict or predefined.default_to_dict
+            from_dict_ = from_dict or predefined.default_from_dict
 
         name_ = name or _cls.__name__
-        AutoDict.register(
-            name=name_, to_dict=to_dict_, from_dict=from_dict_)(_cls)
+        AutoDict.register(name=name_, to_dict=to_dict_, from_dict=from_dict_)(_cls)
         return _cls
 
     return inner(cls) if cls else inner
 
 
-def to_dictable(cls: T = None, name=None, to_dict=None) \
-        -> Union[T, Callable[[T], T]]:
+def to_dictable(cls: T = None, name=None, to_dict=None) -> Union[T, Callable[[T], T]]:
     """
     Annotate [cls] as to_dictable.
 
@@ -83,14 +103,15 @@ def to_dictable(cls: T = None, name=None, to_dict=None) \
     """
     try:
         meta = AutoDict.meta_of(cls)
-        from_dict = meta.from_dict or unable_from_dict
+        from_dict = meta.from_dict or predefined.unable_from_dict
     except KeyError:
-        from_dict = unable_from_dict
+        from_dict = predefined.unable_from_dict
     return dictable(cls, name=name, to_dict=to_dict, from_dict=from_dict)
 
 
-def from_dictable(cls: T = None, name=None, from_dict=None) \
-        -> Union[T, Callable[[T], T]]:
+def from_dictable(
+    cls: T = None, name=None, from_dict=None
+) -> Union[T, Callable[[T], T]]:
     """
     Annotate [cls] as from_dictable.
 
@@ -102,9 +123,9 @@ def from_dictable(cls: T = None, name=None, from_dict=None) \
     """
     try:
         meta = AutoDict.meta_of(cls)
-        to_dict = meta.to_dict or unable_to_dict
+        to_dict = meta.to_dict or predefined.unable_to_dict
     except KeyError:
-        to_dict = unable_to_dict
+        to_dict = predefined.unable_to_dict
     return dictable(cls, name=name, to_dict=to_dict, from_dict=from_dict)
 
 
@@ -128,7 +149,7 @@ class Dictable:
 
         :return: The transformed dictionary.
         """
-        return default_to_dict(self, options)
+        return predefined.default_to_dict(self, options)
 
     @classmethod
     def _from_dict(cls: Type[T], obj: O, options: Options) -> T:
@@ -141,7 +162,7 @@ class Dictable:
         :param obj: The dictionary.
         :return: An instance of this class.
         """
-        return default_from_dict(cls, obj, options)
+        return predefined.default_from_dict(cls, obj, options)
 
     @final
     def to_dict(self, options: Optional[Options] = None) -> dict:
@@ -174,7 +195,7 @@ class Dictable:
 
 
 class AutoDict(Registry[Meta]):
-    CLS_ANNO_KEY = '@'
+    CLS_ANNO_KEY = "@"
 
     @staticmethod
     def to_dict(ins: Any, options: Optional[Options] = None):
@@ -196,7 +217,7 @@ class AutoDict(Registry[Meta]):
         elif AutoDict.registered(cls):
             obj = AutoDict.meta_of(cls).to_dict(ins, options)
         elif dataclasses.is_dataclass(ins):
-            obj = dataclass_to_dict(ins, options)
+            obj = predefined.dataclass_to_dict(ins, options)
         elif is_builtin(cls) or not options.strict:
             obj = ins
         else:
@@ -209,8 +230,7 @@ class AutoDict(Registry[Meta]):
         return obj
 
     @staticmethod
-    def from_dict(obj: O, cls: Type[T] = None,
-                  options: Optional[Options] = None) -> T:
+    def from_dict(obj: O, cls: Type[T] = None, options: Optional[Options] = None) -> T:
         """
         Instantiate an object from a dictionary.
 
@@ -234,7 +254,7 @@ class AutoDict(Registry[Meta]):
         elif AutoDict.registered(cls):
             ins = AutoDict.meta_of(cls).from_dict(cls, obj, options)
         elif dataclasses.is_dataclass(cls):
-            ins = dataclass_from_dict(cls, obj, options)
+            ins = predefined.dataclass_from_dict(cls, obj, options)
         elif cls is None or is_builtin(cls) or not options.strict:
             ins = obj
         else:
@@ -249,8 +269,9 @@ def embed_class(cls: Type[T], obj: O, options: Options) -> O:
     return obj
 
 
-def strip_class(obj: O, cand_cls: Optional[Type[T]], options: Options) \
-        -> Optional[Type[T]]:
+def strip_class(
+    obj: O, cand_cls: Optional[Type[T]], options: Options
+) -> Optional[Type[T]]:
     if not isinstance(obj, dict) or AutoDict.CLS_ANNO_KEY not in obj:
         return cand_cls
 
@@ -291,8 +312,7 @@ def _items_from_dict_dataclass(obj: O, cls: type, opts: Options):
 
     def transform_field(field_dic, field_name):
         field_cls = annotations.get(field_name)
-        if inspect.isclass(field_cls) and \
-                issubclass(field_cls, dataclasses.InitVar):
+        if inspect.isclass(field_cls) and issubclass(field_cls, dataclasses.InitVar):
             field_cls = field_cls.type
 
         return AutoDict.from_dict(field_dic, field_cls, opts)
@@ -327,7 +347,7 @@ def _items_from_dict_generic_non_collection(obj: O, cls: type, opts: Options):
                 continue
 
         if len(cand_objects) > 1:
-            raise ValueError(f'Multiple union type matched: {cand_objects}')
+            raise ValueError(f"Multiple union type matched: {cand_objects}")
 
         return cand_objects.popitem()[-1]
 
@@ -346,20 +366,25 @@ def _items_from_dict_generic_collection(obj: O, cls: type, opts: Options):
     if issubclass(data_cls, Mapping):
         key_cls, val_cls = inspect_generic_templ_args(cls, defaults=(Any, Any))
         data_cls = mapping_builder(data_cls)
-        return data_cls((AutoDict.from_dict(key, key_cls, opts),
-                         AutoDict.from_dict(val, val_cls, opts))
-                        for key, val in obj.items())
+        return data_cls(
+            (
+                AutoDict.from_dict(key, key_cls, opts),
+                AutoDict.from_dict(val, val_cls, opts),
+            )
+            for key, val in obj.items()
+        )
 
     if issubclass(data_cls, tuple):
         item_classes = inspect_generic_templ_args(cls, defaults=(Any, ...))
         if len(item_classes) == 2 and item_classes[-1] is ...:
             item_classes = (item_classes[0],) * len(obj)
-        return data_cls(AutoDict.from_dict(item, item_cls, opts)
-                        for item, item_cls in zip(obj, item_classes))
+        return data_cls(
+            AutoDict.from_dict(item, item_cls, opts)
+            for item, item_cls in zip(obj, item_classes)
+        )
 
     if issubclass(data_cls, (list, set, frozenset)):
-        item_cls, = inspect_generic_templ_args(cls, defaults=(Any,))
-        return data_cls(AutoDict.from_dict(item, item_cls, opts)
-                        for item in obj)
+        (item_cls,) = inspect_generic_templ_args(cls, defaults=(Any,))
+        return data_cls(AutoDict.from_dict(item, item_cls, opts) for item in obj)
 
-    raise ValueError(f'Unhandled generic collection type: {data_cls}')
+    raise ValueError(f"Unhandled generic collection type: {data_cls}")

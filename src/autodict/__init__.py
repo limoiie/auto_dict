@@ -10,8 +10,14 @@ import pathlib as _plib
 
 from .autodict import AutoDict, Dictable, dictable, from_dictable, to_dictable
 
-__all__ = ['dictable', 'to_dictable', 'from_dictable', 'AutoDict', 'Dictable',
-           'Options']
+__all__ = [
+    "dictable",
+    "to_dictable",
+    "from_dictable",
+    "AutoDict",
+    "Dictable",
+    "Options",
+]
 
 try:
     __version__ = _importlib_metadata.version("autodict")

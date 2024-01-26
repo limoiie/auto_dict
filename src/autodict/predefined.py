@@ -9,17 +9,27 @@ from autodict.errors import UnableFromDict, UnableToDict
 from autodict.options import Options
 from autodict.types import O, T, strip_hidden_member_prefix
 
+__all__ = [
+    "default_to_dict",
+    "default_from_dict",
+    "enum_to_dict",
+    "enum_from_dict",
+    "dataclass_to_dict",
+    "dataclass_from_dict",
+    "unable_to_dict",
+    "unable_from_dict",
+]
+
 
 def default_to_dict(ins: Any, _option: Options) -> O:
     return copy.copy(ins.__dict__)
 
 
 def default_from_dict(cls: Type[T], obj: O, _option: Options) -> T:
-    fn_init = getattr(cls, '__init__', None)
+    fn_init = getattr(cls, "__init__", None)
     if fn_init:
         cand_param_values = {
-            strip_hidden_member_prefix(cls, field_name):
-                (field_name, field_value)
+            strip_hidden_member_prefix(cls, field_name): (field_name, field_value)
             for field_name, field_value in obj.items()
         }
         positional_param_values = list()
@@ -29,7 +39,7 @@ def default_from_dict(cls: Type[T], obj: O, _option: Options) -> T:
         # capture param assignments
         sig = inspect.signature(fn_init)
         for param in sig.parameters.values():
-            if param.name == 'self':
+            if param.name == "self":
                 continue
 
             if param.name in cand_param_values:
@@ -71,13 +81,14 @@ def enum_to_dict(ins: enum.Enum, _options: Options) -> O:
 
 
 def enum_from_dict(cls: Type[T], obj: dict, _options: Options) -> T:
-    enum_name = obj['name']
-    enum_value = obj['value']
+    enum_name = obj["name"]
+    enum_value = obj["value"]
 
     obj = cls(enum_value)
-    assert obj.name == enum_name, \
-        f'Inconsistent enum {cls} value {enum_value}: \n' \
-        f'  expect name {obj.name}, but get name {enum_name}.'
+    assert obj.name == enum_name, (
+        f"Inconsistent enum {cls} value {enum_value}: \n"
+        f"  expect name {obj.name}, but get name {enum_name}."
+    )
     return obj
 
 
@@ -90,8 +101,11 @@ def dataclass_from_dict(cls: Type[T], obj: dict, _options: Options) -> T:
     post_init_values = {}
 
     for field in dataclasses_ext.instance_fields(cls):
-        field_value = obj[field.name] if field.name in obj else \
-            dataclasses_ext.default_value(field)
+        field_value = (
+            obj[field.name]
+            if field.name in obj
+            else dataclasses_ext.default_value(field)
+        )
 
         if field.init:
             init_values[field.name] = field_value
