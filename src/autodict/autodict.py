@@ -1,7 +1,6 @@
 import dataclasses
 import enum
 import inspect
-from dataclasses import is_dataclass
 
 # noinspection PyUnresolvedReferences,PyProtectedMember
 from typing import (
@@ -73,7 +72,7 @@ def dictable(
     """
 
     def inner(_cls):
-        if is_dataclass(_cls):
+        if dataclasses.is_dataclass(_cls):
             to_dict_ = to_dict or predefined.dataclass_to_dict
             from_dict_ = from_dict or predefined.dataclass_from_dict
         elif issubclass(_cls, enum.Enum):
@@ -218,6 +217,8 @@ class AutoDict(Registry[Meta]):
             obj = AutoDict.meta_of(cls).to_dict(ins, options)
         elif dataclasses.is_dataclass(ins):
             obj = predefined.dataclass_to_dict(ins, options)
+        elif isinstance(ins, enum.Enum):
+            obj = predefined.enum_to_dict(ins, options)
         elif is_builtin(cls) or not options.strict:
             obj = ins
         else:
@@ -255,6 +256,8 @@ class AutoDict(Registry[Meta]):
             ins = AutoDict.meta_of(cls).from_dict(cls, obj, options)
         elif dataclasses.is_dataclass(cls):
             ins = predefined.dataclass_from_dict(cls, obj, options)
+        elif inspect.isclass(cls) and issubclass(cls, enum.Enum):
+            ins = predefined.enum_from_dict(cls, obj, options)
         elif cls is None or is_builtin(cls) or not options.strict:
             ins = obj
         else:
@@ -264,14 +267,44 @@ class AutoDict(Registry[Meta]):
 
 
 def embed_class(cls: Type[T], obj: O, options: Options) -> O:
-    if options.with_cls and not is_builtin(cls) and isinstance(obj, dict):
-        obj[AutoDict.CLS_ANNO_KEY] = AutoDict.meta_of(cls).name
+    """
+    Embed class name into the dictionary if it is not builtin.
+
+    :param cls: The class to be embedded.
+    :param obj: The dictionary.
+    :param options: Options that controls the transform behaviors.
+    :return: The dictionary with class name embedded if it is not builtin;
+        otherwise, just the original dictionary.
+    """
+    if options.with_cls:
+        if not is_builtin(cls) and isinstance(obj, dict):
+            # if registered, use the registered name
+            if AutoDict.registered(cls):
+                obj[AutoDict.CLS_ANNO_KEY] = AutoDict.meta_of(cls).name
+            # if the cls is native supported (dataclass or enum), use the class name
+            elif dataclasses.is_dataclass(cls) or issubclass(cls, enum.Enum):
+                obj[AutoDict.CLS_ANNO_KEY] = cls.__name__
+            # otherwise, raise the error
+            else:
+                raise UnableToDict(cls)
     return obj
 
 
 def strip_class(
     obj: O, cand_cls: Optional[Type[T]], options: Options
 ) -> Optional[Type[T]]:
+    """
+    Strip class name from the dictionary if it is embedded,
+    and return the class bound to that name if it is registered.
+
+    :param obj: The dictionary.
+    :param cand_cls: The candidate class that is going to be instantiated
+        against. If providing `None`, the real class will be inferred from the
+        dictionary.
+    :param options: Options that controls the transform behaviors.
+    :return: The class bound to the class name if it is registered; otherwise,
+        just the original class.
+    """
     if not isinstance(obj, dict) or AutoDict.CLS_ANNO_KEY not in obj:
         return cand_cls
 
@@ -279,12 +312,12 @@ def strip_class(
     cls = AutoDict.query(name=cls_name)
 
     if cls is None:
-        if options.strict:
+        if not cand_cls and options.strict:
             raise UnableFromDict(cls_name)
     else:
         del obj[AutoDict.CLS_ANNO_KEY]
 
-    return cls
+    return cls or cand_cls
 
 
 def _items_to_dict(obj: O, options: Options):
@@ -292,7 +325,7 @@ def _items_to_dict(obj: O, options: Options):
 
 
 def _items_from_dict(obj: O, cls: Optional[type], options: Options):
-    if is_dataclass(cls):
+    if dataclasses.is_dataclass(cls):
         return _items_from_dict_dataclass(obj, cls, options)
 
     if is_annotated_class(cls):

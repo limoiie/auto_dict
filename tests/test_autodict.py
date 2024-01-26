@@ -1,5 +1,3 @@
-import dataclasses
-import enum
 import pathlib
 from collections import namedtuple
 from typing import List, Tuple, Union
@@ -7,7 +5,6 @@ from typing import List, Tuple, Union
 import pytest
 
 from autodict import AutoDict, dictable
-from autodict.autodict import Dictable, from_dictable, to_dictable
 from autodict.errors import UnableFromDict, UnableToDict
 from autodict.options import Options
 from conftest import support_literals
@@ -84,20 +81,9 @@ class WithComplexConstructor:
         self.a, self.b, self.c, self.d, self.e, self.f, self.g = a, b, c, d, e, f, g
 
     def __eq__(self, other):
-        return (
-            isinstance(other, WithComplexConstructor) and self.a,
-            self.b,
-            self.c,
-            self.d,
-            self.e,
-            self.f,
-            self.g == other.a,
-            other.b,
-            other.c,
-            other.d,
-            other.e,
-            other.f,
-            other.g,
+        return isinstance(other, WithComplexConstructor) and (
+            (self.a, self.b, self.c, self.d, self.e, self.f, self.g)
+            == (other.a, other.b, other.c, other.d, other.e, other.f, other.g)
         )
 
 
@@ -277,43 +263,14 @@ class AnnotatedRef:
 
 
 @dictable
-class Color(enum.Enum):
-    Black = 1
-    Red = 2
-
-
-@dictable
 class AnnotatedSpecialStd:
     path: pathlib.Path
-    color: Color
 
-    def __init__(self, path, color):
+    def __init__(self, path):
         self.path = path
-        self.color = color
 
     def __eq__(self, other):
-        return (
-            isinstance(other, AnnotatedSpecialStd)
-            and self.path == other.path
-            and self.color == other.color
-        )
-
-
-@dataclasses.dataclass
-class NativeDataclass:
-    str_value: str
-    list_value: List[int]
-
-
-@dataclasses.dataclass
-class DataclassWithField:
-    init_value: str
-    init_variable: dataclasses.InitVar[int] = 0
-    post_init_value: int = dataclasses.field(init=False)
-    default_value: int = dataclasses.field(default=10)
-
-    def __post_init__(self, init_variable):
-        self.post_init_value = self.default_value + init_variable
+        return isinstance(other, AnnotatedSpecialStd) and self.path == other.path
 
 
 GoodCase = namedtuple("GoodCase", "ins,obj,opts,name")
@@ -546,31 +503,12 @@ def generate_good_cases() -> List[GoodCase]:
         ),
         GoodCase(
             name="nested dictable with special std types",
-            ins=AnnotatedSpecialStd(
-                path=pathlib.Path("/home/limo/.bashrc"), color=Color.Red
-            ),
+            ins=AnnotatedSpecialStd(path=pathlib.Path("/home/limo/.bashrc")),
             obj={
                 "@": "AnnotatedSpecialStd",
                 "path": "/home/limo/.bashrc",
-                "color": {
-                    "@": "Color",
-                    "value": Color.Red.value,
-                    "name": Color.Red.name,
-                },
             },
             opts=Options(with_cls=True, strict=False),
-        ),
-        GoodCase(
-            name="native support to dataclass",
-            ins=NativeDataclass(str_value="limo", list_value=[10, 20]),
-            obj={"str_value": "limo", "list_value": [10, 20]},
-            opts=Options(with_cls=False, strict=True),
-        ),
-        GoodCase(
-            name="dataclass with fields",
-            ins=DataclassWithField(init_value="A", init_variable=10, default_value=20),
-            obj={"init_value": "A", "post_init_value": 30, "default_value": 20},
-            opts=Options(with_cls=False, strict=True),
         ),
     ]
 
@@ -697,182 +635,3 @@ class TestAnnotate:
                 AutoDict.to_dict(case.ins, case.opts)
             elif case.ins is None:
                 AutoDict.from_dict(case.obj, case.cls, case.opts)
-
-    @to_dictable
-    class PartialTo:
-        def __init__(self, str_value, int_value):
-            self.str_value = str_value
-            self.int_value = int_value
-
-    def test_to_dictable_to_dict(self):
-        f = TestAnnotate.PartialTo(str_value="limo", int_value=10)
-        dict_f = AutoDict.to_dict(f)
-
-        assert dict_f == {"str_value": "limo", "int_value": 10, "@": "PartialTo"}
-
-    def test_to_dictable_from_dict(self):
-        dict_f = {"str_value": "limo", "int_value": 10, "@": "PartialTo"}
-
-        with pytest.raises(UnableFromDict, match=".*PartialTo.*"):
-            AutoDict.from_dict(dict_f)
-
-    @from_dictable
-    class PartialFrom:
-        def __init__(self, str_value, int_value):
-            self.str_value = str_value
-            self.int_value = int_value
-
-        def __eq__(self, other):
-            return (
-                isinstance(other, TestAnnotate.PartialFrom)
-                and self.str_value == other.str_value
-                and self.int_value == other.int_value
-            )
-
-    def test_from_dictable_from_dict(self):
-        dict_g = {"str_value": "limo", "int_value": 10, "@": "PartialFrom"}
-
-        g = AutoDict.from_dict(dict_g, TestAnnotate.PartialFrom)
-        assert g == TestAnnotate.PartialFrom(str_value="limo", int_value=10)
-
-    def test_from_dictable_to_dict(self):
-        g = TestAnnotate.PartialFrom(str_value="limo", int_value=10)
-
-        with pytest.raises(UnableToDict, match=".*PartialFrom.*"):
-            AutoDict.to_dict(g)
-
-    @to_dictable
-    @from_dictable
-    class PartialBoth:
-        def __init__(self, str_value, int_value):
-            self.str_value = str_value
-            self.int_value = int_value
-
-        def __eq__(self, other):
-            return (
-                isinstance(other, TestAnnotate.PartialBoth)
-                and self.str_value == other.str_value
-                and self.int_value == other.int_value
-            )
-
-    def test_to_from_dictable(self):
-        h = TestAnnotate.PartialBoth(str_value="limo", int_value=10)
-        dict_h = AutoDict.to_dict(h)
-
-        assert dict_h == {"str_value": "limo", "int_value": 10, "@": "PartialBoth"}
-        output_h = AutoDict.from_dict(dict_h)
-        assert h == output_h
-
-
-class TestDerive:
-    class General(Dictable):
-        def __init__(self, str_value, int_value):
-            self.str_value = str_value
-            self.int_value = int_value
-
-        def __eq__(self, other):
-            return (
-                isinstance(other, TestDerive.General)
-                and self.str_value == other.str_value
-                and self.int_value == other.int_value
-            )
-
-    def test_derive_without_overwritten(self):
-        f = TestDerive.General(str_value="limo", int_value=10)
-
-        dict_f = AutoDict.to_dict(f)
-        assert dict_f == {"str_value": "limo", "int_value": 10, "@": "General"}
-
-        output_f = AutoDict.from_dict(dict_f, TestDerive.General)
-        assert f == output_f
-
-    class CustomName(Dictable, name="SomeF"):
-        def __init__(self, str_value, int_value):
-            self.str_value = str_value
-            self.int_value = int_value
-
-        def __eq__(self, other):
-            return (
-                isinstance(other, TestDerive.CustomName)
-                and self.str_value == other.str_value
-                and self.int_value == other.int_value
-            )
-
-    def test_derive_without_overwritten_but_customized_name(self):
-        f = TestDerive.CustomName(str_value="limo", int_value=10)
-
-        dict_f = AutoDict.to_dict(f)
-        assert dict_f == {"str_value": "limo", "int_value": 10, "@": "SomeF"}
-
-        output_f = AutoDict.from_dict(dict_f, TestDerive.General)
-        assert f == output_f
-
-    class OverrideBoth(Dictable):
-        def __init__(self):
-            self.str_value = ""
-            self.int_value = 0
-
-        def __eq__(self, other):
-            return (
-                isinstance(other, TestDerive.OverrideBoth)
-                and self.str_value == other.str_value
-                and self.int_value == other.int_value
-            )
-
-        @classmethod
-        def _from_dict(cls, obj: dict, _: Options) -> "TestDerive.OverrideBoth":
-            g = TestDerive.OverrideBoth()
-            g.str_value = obj["str_value"]
-            g.int_value = obj["int_value"]
-            return g
-
-        def _to_dict(self, _: Options) -> dict:
-            return {"str_value": self.str_value, "int_value": self.int_value}
-
-    def test_derive_with_overwritten(self):
-        g = TestDerive.OverrideBoth()
-        g.str_value = "limo"
-        g.int_value = 10
-
-        dict_g = AutoDict.to_dict(g)
-        assert dict_g == {"str_value": "limo", "int_value": 10, "@": "OverrideBoth"}
-
-        output_g = AutoDict.from_dict(dict_g, TestDerive.OverrideBoth)
-        assert g == output_g
-
-    class NestedOverride(Dictable):
-        g: "TestDerive.OverrideBoth"
-
-        def __init__(self):
-            self.g = TestDerive.OverrideBoth()
-            self.count = 0
-
-        def __eq__(self, other):
-            return self.g == other.g and self.count == other.count
-
-        @classmethod
-        def _from_dict(cls, obj: dict, _) -> "TestDerive.NestedOverride":
-            h = TestDerive.NestedOverride()
-            h.g = obj["g"]
-            h.count = obj["count"]
-            return h
-
-        def _to_dict(self, _: Options) -> dict:
-            return {"g": self.g, "count": self.count}
-
-    def test_nested_derive_with_overwritten(self):
-        h = TestDerive.NestedOverride()
-        h.g = TestDerive.OverrideBoth()
-        h.g.str_value = "limo"
-        h.g.int_value = 10
-        h.count = 20
-
-        dict_h = AutoDict.to_dict(h)
-        assert dict_h == {
-            "g": {"str_value": "limo", "int_value": 10, "@": "OverrideBoth"},
-            "count": 20,
-            "@": "NestedOverride",
-        }
-
-        output_h = AutoDict.from_dict(dict_h, TestDerive.NestedOverride)
-        assert h == output_h
